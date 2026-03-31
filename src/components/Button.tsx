@@ -17,16 +17,18 @@ const Button = ({
   return (
     <button
       className={classNames(
-        'cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed rounded-full font-semibold transition duration-150',
+        'cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium tracking-wide transition-all duration-200 ease-out',
+        'active:scale-[0.97]',
         {
-          'bg-blue-500 text-white enabled:hover:bg-blue-600':
+          'bg-accent text-white hover:bg-accent-hover shadow-[0_0_20px_var(--color-accent-glow)] hover:shadow-[0_0_28px_var(--color-accent-glow)]':
             variant === 'primary',
-          'border border-blue-500 text-blue-500 enabled:hover:text-white enabled:hover:bg-blue-500':
+          'border border-border-default text-text-primary hover:border-accent hover:text-accent hover:bg-accent-subtle':
             variant === 'outlined',
-          'border border-red-500 text-red-500 enabled:hover:text-white enabled:hover:bg-red-500':
+          'border border-error-border text-error hover:bg-error-bg':
             variant === 'errorOutlined',
-          'py-2 px-6 text-base sm:text-lg': size === 'medium',
-          'text-sm py-2 px-6': size === 'small',
+          'py-2.5 px-7 text-base': size === 'medium',
+          'text-sm py-2 px-5': size === 'small',
+          'py-3 px-8 text-lg': size === 'large',
         },
         className,
       )}

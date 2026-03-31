@@ -43,16 +43,6 @@ const UploadTest: React.FC = () => {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ) {
       try {
-        if (process.env.NODE_ENV !== 'development') {
-          const fd = new FormData();
-          fd.append('file', file);
-
-          await fetch('/api/upload', {
-            method: 'POST',
-            body: fd,
-          });
-        }
-
         const content = await readDocxFile(file);
         const parsedQuestions = parseQuestions(content);
         const testFileIsExists = testFiles.find(
@@ -161,7 +151,7 @@ const UploadTest: React.FC = () => {
         if (currentQuestion) {
           currentQuestion.variants.push({
             text: line.replace('<variant>', '').replace(/\+$/, '').trim(),
-            correct: currentQuestion.variants.length === 0, // Первый вариант - правильный
+            correct: currentQuestion.variants.length === 0,
           });
         }
       }
@@ -194,11 +184,12 @@ const UploadTest: React.FC = () => {
   return (
     <>
       {error && (
-        <p className="text-red-500 text-sm sm:text-base text-center mb-4">
+        <div className="glass-card border-error-border! bg-error-bg! text-error text-sm text-center mb-6 py-3 px-4 animate-scale-in">
           {error}
-        </p>
+        </div>
       )}
-      <div className="flex gap-2 flex-wrap justify-center">
+
+      <div className="flex gap-3 flex-wrap justify-center">
         <Button
           variant={'outlined'}
           disabled={isLoading}
@@ -220,14 +211,14 @@ const UploadTest: React.FC = () => {
           className="hidden"
         />
       </div>
-      <div className={'flex gap-1 mt-2.5 items-center justify-center'}>
-        <div className={'text-xs text-gray-400'}>
+
+      {/* Question count input */}
+      <div className="flex gap-2 mt-4 items-center justify-center">
+        <span className="text-xs text-text-muted">
           Количество вопросов в тесте
-        </div>
+        </span>
         <input
-          className={
-            'border-b border-gray-200 w-10 py-0.5 text-xs text-center text-gray-700'
-          }
+          className="bg-surface-raised border border-border-default rounded-lg w-14 py-1.5 text-xs text-center text-text-primary focus:border-accent transition-colors duration-200"
           min={10}
           max={999}
           value={questionsCountPerTest}
@@ -237,14 +228,22 @@ const UploadTest: React.FC = () => {
           }}
         />
       </div>
+
+      {/* Uploaded files list */}
       {testFiles.length > 0 && (
-        <div className={'flex flex-col items-center gap-2 mt-8'}>
-          <div className={'flex flex-col'}>
-            <div className={'text-sm'}>Загруженные файлы:</div>
+        <div className="flex flex-col items-center gap-3 mt-8 animate-fade-up">
+          <div className="flex flex-col items-center">
+            <div className="text-sm text-text-secondary font-medium">
+              Загруженные файлы:
+            </div>
             {testFiles.length > 1 && (
-              <div className={'text-xs text-gray-500 mb-2'}>
+              <div className="text-xs text-text-muted mt-1">
                 ({testFiles.length}{' '}
-                {getEndOfTheWord(testFiles.length, ['файл', 'файла', 'файлов'])}
+                {getEndOfTheWord(testFiles.length, [
+                  'файл',
+                  'файла',
+                  'файлов',
+                ])}
                 , {allTestFilesQuestionCount}{' '}
                 {getEndOfTheWord(allTestFilesQuestionCount, [
                   'вопрос',
@@ -255,19 +254,39 @@ const UploadTest: React.FC = () => {
               </div>
             )}
           </div>
-          <div className={'flex gap-2 flex-wrap justify-center w-full'}>
+
+          <div className="flex gap-3 flex-wrap justify-center w-full">
             {testFiles.map((testFile, index) => (
               <div
                 key={index}
-                className={
-                  'relative border border-gray-200 rounded-lg p-4 flex gap-4 items-center w-full sm:w-60'
-                }
+                className="glass-card-raised group p-4 flex gap-4 items-center w-full sm:w-64 hover:border-border-accent transition-colors duration-300"
               >
-                <div className={'flex-grow text-start truncate'}>
-                  <div className={'text-sm truncate'} title={testFile.name}>
+                {/* File icon */}
+                <div className="shrink-0 size-9 rounded-lg bg-accent-subtle flex items-center justify-center">
+                  <svg
+                    className="size-4 text-accent"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
+
+                <div className="flex-grow min-w-0 text-start">
+                  <div
+                    className="text-sm text-text-primary truncate"
+                    title={testFile.name}
+                  >
                     {testFile.name}
                   </div>
-                  <div className={'text-gray-500 text-xs truncate'}>
+                  <div className="text-text-muted text-xs truncate">
                     {testFile.questionsCount}{' '}
                     {getEndOfTheWord(testFile.questionsCount, [
                       'вопрос',
@@ -276,12 +295,14 @@ const UploadTest: React.FC = () => {
                     ])}
                   </div>
                 </div>
+
                 <div
                   onClick={() => handleDeleteTestFile(index)}
                   title={'Удалить тест'}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
                 >
                   <svg
-                    className="size-5 text-red-500 cursor-pointer"
+                    className="size-4 text-error hover:text-error/80 transition-colors"
                     focusable="false"
                     aria-hidden="true"
                     viewBox="0 0 24 24"
