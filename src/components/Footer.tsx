@@ -1,6 +1,6 @@
 const Footer = () => {
   return (
-    <div className="text-text-muted text-xs tracking-wide text-center flex flex-col items-center gap-1.5">
+    <div className="text-text-muted text-xs tracking-wide text-center flex flex-col items-center gap-1.5 pb-14 sm:pb-0">
       <div className="flex items-center flex-wrap justify-center gap-1">
         &copy; {new Date().getFullYear()} Автор: Кабден Аян &middot;{' '}
         <a
