@@ -9,6 +9,7 @@ type Question = {
   question: string;
   type: string;
   variants: Variant[];
+  images?: string[];
 };
 
 type Variant = {
@@ -33,6 +34,8 @@ const Index = () => {
     mins: '00',
     secs: '00',
   });
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const router = useRouter();
 
   const handleAnswer = useCallback(
@@ -53,6 +56,10 @@ const Index = () => {
   );
 
   const currentQuestion = questions[currentQuestionIndex];
+
+  useEffect(() => {
+    setCurrentImageIndex(0);
+  }, [currentQuestionIndex]);
 
   const setFormattedCountdown = useCallback((timer: number) => {
     const hrs = (timer / 3600).toFixed(0);
@@ -80,12 +87,29 @@ const Index = () => {
     };
   }, [setFormattedCountdown]);
 
-  const showNextQuestionButton = useMemo(() => {
-    return (
-      selectedAnswersByQuestion[currentQuestionIndex] !== undefined &&
-      currentQuestionIndex !== questions.length - 1
-    );
-  }, [selectedAnswersByQuestion, currentQuestionIndex, questions]);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (lightboxIndex !== null) {
+        const images = questions[currentQuestionIndex]?.images;
+        if (e.key === 'Escape') {
+          setLightboxIndex(null);
+        } else if (e.key === 'ArrowLeft' && lightboxIndex > 0) {
+          setLightboxIndex((prev) => prev! - 1);
+        } else if (e.key === 'ArrowRight' && images && lightboxIndex < images.length - 1) {
+          setLightboxIndex((prev) => prev! + 1);
+        }
+      } else {
+        if (e.key === 'ArrowLeft' && currentQuestionIndex > 0) {
+          setCurrentQuestionIndex((prev) => prev - 1);
+        } else if (e.key === 'ArrowRight' && currentQuestionIndex < questions.length - 1) {
+          setCurrentQuestionIndex((prev) => prev + 1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentQuestionIndex, questions, lightboxIndex]);
 
   const showResultsButton = useMemo(() => {
     return Object.keys(selectedAnswersByQuestion).length === questions.length;
@@ -181,6 +205,48 @@ const Index = () => {
             {currentQuestion.question}
           </h2>
 
+          {currentQuestion.images && currentQuestion.images.length > 0 && (
+            <div className="mb-6">
+              <div className="relative">
+                <img
+                  src={currentQuestion.images[currentImageIndex] || currentQuestion.images[0]}
+                  alt={`Изображение ${currentImageIndex + 1} к вопросу ${currentQuestionIndex + 1}`}
+                  className="w-full h-60 sm:h-72 object-contain rounded-xl border border-border-subtle cursor-zoom-in hover:opacity-80 transition-opacity"
+                  onClick={() => setLightboxIndex(currentImageIndex)}
+                />
+                {currentQuestion.images.length > 1 && (
+                  <>
+                    <button
+                      className="absolute left-2 top-1/2 -translate-y-1/2 size-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors disabled:opacity-30"
+                      disabled={currentImageIndex === 0}
+                      onClick={() => setCurrentImageIndex((prev) => prev - 1)}
+                    >
+                      <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                    </button>
+                    <button
+                      className="absolute right-2 top-1/2 -translate-y-1/2 size-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors disabled:opacity-30"
+                      disabled={currentImageIndex === currentQuestion.images.length - 1}
+                      onClick={() => setCurrentImageIndex((prev) => prev + 1)}
+                    >
+                      <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                    </button>
+                  </>
+                )}
+              </div>
+              {currentQuestion.images.length > 1 && (
+                <div className="flex justify-center gap-1.5 mt-3">
+                  {currentQuestion.images.map((_, index) => (
+                    <button
+                      key={index}
+                      className={'size-2 rounded-full transition-all' + (index === currentImageIndex ? ' bg-accent scale-125' : ' bg-text-muted/30 hover:bg-text-muted/50')}
+                      onClick={() => setCurrentImageIndex(index)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <ul className="space-y-3">
             {currentQuestion.variants.map((variant, index) => {
               const isSelected =
@@ -230,17 +296,25 @@ const Index = () => {
       )}
 
       {/* Bottom action bar */}
-      {(showNextQuestionButton || showResultsButton) && (
+      {questions.length > 0 && (
         <div className="py-5 sticky bottom-0 flex gap-3 backdrop-blur-xl mt-8 animate-fade-up -mx-4 md:-mx-8 px-4 md:px-8" style={{ backgroundColor: 'var(--color-backdrop-bg)' }}>
-          {showNextQuestionButton && (
-            <Button
-              onClick={() => {
-                setCurrentQuestionIndex(currentQuestionIndex + 1);
-              }}
-            >
-              Следующий вопрос
-            </Button>
-          )}
+          <Button
+            variant={'outlined'}
+            disabled={currentQuestionIndex === 0}
+            onClick={() => {
+              setCurrentQuestionIndex(currentQuestionIndex - 1);
+            }}
+          >
+            Назад
+          </Button>
+          <Button
+            disabled={currentQuestionIndex === questions.length - 1}
+            onClick={() => {
+              setCurrentQuestionIndex(currentQuestionIndex + 1);
+            }}
+          >
+            Вперед
+          </Button>
           {showResultsButton && (
             <Button
               variant={'outlined'}
@@ -248,7 +322,7 @@ const Index = () => {
                 router.push('/results');
               }}
             >
-              Показать результаты тест
+              Показать результаты
             </Button>
           )}
         </div>
@@ -257,6 +331,36 @@ const Index = () => {
       <div className="mt-auto pt-8">
         <Footer />
       </div>
+
+      {lightboxIndex !== null && currentQuestion?.images && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <img
+            src={currentQuestion.images[lightboxIndex]}
+            alt="Увеличенное изображение"
+            className="max-w-full max-h-[80vh] rounded-xl object-contain cursor-zoom-out"
+            onClick={() => setLightboxIndex(null)}
+          />
+          {currentQuestion.images.length > 1 && (
+            <div
+              className="flex gap-2 mt-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {currentQuestion.images.map((src, index) => (
+                <img
+                  key={index}
+                  src={src}
+                  alt={`Миниатюра ${index + 1}`}
+                  className={'h-16 w-20 object-cover rounded-lg border-2 cursor-pointer transition-all' + (index === lightboxIndex ? ' border-accent opacity-100' : ' border-transparent opacity-50 hover:opacity-80')}
+                  onClick={() => setLightboxIndex(index)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

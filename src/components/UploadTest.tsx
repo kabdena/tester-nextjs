@@ -10,6 +10,7 @@ type Question = {
   question: string;
   type: string;
   variants: Variant[];
+  images: string[];
 };
 
 type Variant = {
@@ -108,7 +109,7 @@ const UploadTest: React.FC = () => {
       reader.onload = async (e) => {
         const arrayBuffer = e.target?.result as ArrayBuffer;
         try {
-          const result = await mammoth.extractRawText({ arrayBuffer });
+          const result = await mammoth.convertToHtml({ arrayBuffer });
           resolve(result.value);
         } catch (err) {
           reject(err);
@@ -120,42 +121,53 @@ const UploadTest: React.FC = () => {
     });
   };
 
-  const parseQuestions = (text: string): Question[] => {
+  const parseQuestions = (html: string): Question[] => {
     const questions: Question[] = [];
-    const blocks = text.split('\n').map((line) => line.trim());
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const elements = doc.body.children;
     let currentQuestion: Question | null = null;
 
-    blocks.forEach((line) => {
-      if (line.startsWith('<question>')) {
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      const text = el.textContent?.trim() || '';
+      const images = Array.from(el.querySelectorAll('img'))
+        .map((img) => img.getAttribute('src') || '')
+        .filter(Boolean);
+
+      if (text.startsWith('<question3>')) {
         if (currentQuestion) questions.push(currentQuestion);
         currentQuestion = {
-          question: line.replace('<question>', ''),
-          type: 'question',
-          variants: [],
-        };
-      } else if (line.startsWith('<question2>')) {
-        if (currentQuestion) questions.push(currentQuestion);
-        currentQuestion = {
-          question: line.replace('<question2>', ''),
-          type: 'question2',
-          variants: [],
-        };
-      } else if (line.startsWith('<question3>')) {
-        if (currentQuestion) questions.push(currentQuestion);
-        currentQuestion = {
-          question: line.replace('<question3>', ''),
+          question: text.replace('<question3>', ''),
           type: 'question3',
           variants: [],
+          images,
         };
-      } else if (line.startsWith('<variant>')) {
-        if (currentQuestion) {
-          currentQuestion.variants.push({
-            text: line.replace('<variant>', '').replace(/\+$/, '').trim(),
-            correct: currentQuestion.variants.length === 0,
-          });
-        }
+      } else if (text.startsWith('<question2>')) {
+        if (currentQuestion) questions.push(currentQuestion);
+        currentQuestion = {
+          question: text.replace('<question2>', ''),
+          type: 'question2',
+          variants: [],
+          images,
+        };
+      } else if (text.startsWith('<question>')) {
+        if (currentQuestion) questions.push(currentQuestion);
+        currentQuestion = {
+          question: text.replace('<question>', ''),
+          type: 'question',
+          variants: [],
+          images,
+        };
+      } else if (text.startsWith('<variant>') && currentQuestion) {
+        currentQuestion.variants.push({
+          text: text.replace('<variant>', '').replace(/\+$/, '').trim(),
+          correct: currentQuestion.variants.length === 0,
+        });
+      } else if (currentQuestion && images.length > 0) {
+        currentQuestion.images.push(...images);
       }
-    });
+    }
 
     if (currentQuestion) questions.push(currentQuestion);
 
