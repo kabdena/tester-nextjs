@@ -44,6 +44,16 @@ const UploadTest: React.FC = () => {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ) {
       try {
+        if (process.env.NODE_ENV !== 'development') {
+          const fd = new FormData();
+          fd.append('file', file);
+
+          await fetch('/api/upload', {
+            method: 'POST',
+            body: fd,
+          });
+        }
+
         const content = await readDocxFile(file);
         const parsedQuestions = parseQuestions(content);
         const testFileIsExists = testFiles.find(
@@ -251,11 +261,7 @@ const UploadTest: React.FC = () => {
             {testFiles.length > 1 && (
               <div className="text-xs text-text-muted mt-1">
                 ({testFiles.length}{' '}
-                {getEndOfTheWord(testFiles.length, [
-                  'файл',
-                  'файла',
-                  'файлов',
-                ])}
+                {getEndOfTheWord(testFiles.length, ['файл', 'файла', 'файлов'])}
                 , {allTestFilesQuestionCount}{' '}
                 {getEndOfTheWord(allTestFilesQuestionCount, [
                   'вопрос',
