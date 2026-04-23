@@ -3,14 +3,31 @@
 import Button from '@/components/Button';
 import Footer from '@/components/Footer';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+
+type Question = {
+  question: string;
+  type: string;
+  variants: { text: string; correct: boolean }[];
+  images?: string[];
+};
 
 const Index = () => {
   const [results, setResults] = useState<boolean[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
 
   useEffect(() => {
     setResults(JSON.parse(localStorage.getItem('results') || '[]'));
+    setQuestions(JSON.parse(localStorage.getItem('questions') || '[]'));
+    setSelectedAnswers(JSON.parse(localStorage.getItem('selectedAnswers') || '{}'));
   }, []);
+
+  const wrongQuestions = useMemo(() => {
+    return questions
+      .map((q, i) => ({ question: q, index: i }))
+      .filter((_, i) => results[i] === false);
+  }, [questions, results]);
 
   const correctAnswers = results.filter((res) => res).length;
   const totalQuestions = results.length;
@@ -124,6 +141,38 @@ const Index = () => {
           <Button onClick={() => router.push('/')}>Перейти на главную</Button>
         </div>
       </div>
+
+      {wrongQuestions.length > 0 && (
+        <div className="w-full max-w-3xl mt-8 space-y-4">
+          <h3 className="font-display text-xl text-text-primary text-center mb-6">
+            Неправильные ответы ({wrongQuestions.length})
+          </h3>
+          {wrongQuestions.map(({ question, index }) => {
+            const selectedIdx = selectedAnswers[index];
+            const correctVariant = question.variants.find((v) => v.correct);
+            const selectedVariant = selectedIdx !== undefined ? question.variants[selectedIdx] : null;
+
+            return (
+              <div key={index} className="glass-card p-5 text-left">
+                <p className="text-sm sm:text-base text-text-primary mb-3">
+                  <span className="text-accent font-medium mr-2">{index + 1}.</span>
+                  {question.question}
+                </p>
+                {selectedVariant && (
+                  <div className="text-sm py-2 px-3 rounded-lg bg-error-bg border border-error-border text-error mb-2">
+                    Ваш ответ: {selectedVariant.text}
+                  </div>
+                )}
+                {correctVariant && (
+                  <div className="text-sm py-2 px-3 rounded-lg bg-success-bg border border-success-border text-success">
+                    Правильный ответ: {correctVariant.text}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex-1" />
       <div className="mt-auto pt-8">

@@ -40,10 +40,11 @@ const Index = () => {
 
   const handleAnswer = useCallback(
     (index: number, questionIndex: number) => {
-      setSelectedAnswersByQuestion((prevState) => ({
-        ...prevState,
+      const newSelected = {
+        ...selectedAnswersByQuestion,
         [questionIndex]: index,
-      }));
+      };
+      setSelectedAnswersByQuestion(newSelected);
 
       const isCorrect = questions[currentQuestionIndex].variants[index].correct;
       const updatedResults = [...results, isCorrect];
@@ -51,8 +52,9 @@ const Index = () => {
       setResults(updatedResults);
 
       localStorage.setItem('results', JSON.stringify(updatedResults));
+      localStorage.setItem('selectedAnswers', JSON.stringify(newSelected));
     },
-    [questions, currentQuestionIndex, results],
+    [questions, currentQuestionIndex, results, selectedAnswersByQuestion],
   );
 
   const currentQuestion = questions[currentQuestionIndex];
