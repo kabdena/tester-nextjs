@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import UploadTest from '@/components/UploadTest';
 import FormatHelp from '@/components/FormatHelp';
+import ShareButton from '@/components/ShareButton';
 import Footer from '@/components/Footer';
 
 const HomePage = () => {
@@ -31,7 +32,11 @@ const HomePage = () => {
 
         <div className="animate-fade-up delay-3">
           <UploadTest />
-          <FormatHelp />
+          <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
+            <ShareButton />
+            <span className="size-1 rounded-full bg-text-muted/40" />
+            <FormatHelp />
+          </div>
         </div>
       </div>
 

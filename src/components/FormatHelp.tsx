@@ -32,7 +32,7 @@ const FormatHelp = () => {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="mt-4 inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-accent transition-colors duration-200"
+        className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-accent transition-colors duration-200"
       >
         <svg
           className="size-4"

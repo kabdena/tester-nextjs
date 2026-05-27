@@ -2,6 +2,7 @@
 
 import Button from '@/components/Button';
 import Footer from '@/components/Footer';
+import ShareButton from '@/components/ShareButton';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -137,8 +138,9 @@ const Index = () => {
           />
         </div>
 
-        <div className="animate-fade-up delay-5">
+        <div className="animate-fade-up delay-5 flex flex-col items-center gap-4">
           <Button onClick={() => router.push('/')}>Перейти на главную</Button>
+          <ShareButton />
         </div>
       </div>
 
