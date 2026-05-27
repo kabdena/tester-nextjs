@@ -37,6 +37,7 @@ const UploadTest: React.FC = () => {
   ) => {
     const file = event.target.files?.[0];
     setIsLoading(true);
+    setError(null);
 
     if (
       file &&
@@ -65,6 +66,13 @@ const UploadTest: React.FC = () => {
           return;
         }
 
+        if (parsedQuestions.length === 0) {
+          setError(
+            'В файле не найдено ни одного вопроса. Проверьте формат — теги <question> и <variant> должны стоять в начале строки.',
+          );
+          return;
+        }
+
         setTestFiles((prevState) => [
           ...prevState,
           {
@@ -73,9 +81,6 @@ const UploadTest: React.FC = () => {
           },
         ]);
         setQuestions((prevState) => [...prevState, ...parsedQuestions]);
-        if (inputRef.current) {
-          inputRef.current.value = '';
-        }
       } catch (err) {
         console.error(err);
         setError(
@@ -83,6 +88,9 @@ const UploadTest: React.FC = () => {
         );
       } finally {
         setIsLoading(false);
+        if (inputRef.current) {
+          inputRef.current.value = '';
+        }
       }
     } else {
       setIsLoading(false);
@@ -91,6 +99,11 @@ const UploadTest: React.FC = () => {
   };
 
   const startTest = () => {
+    if (testFiles.length === 0) {
+      setError('Сначала загрузите тест');
+      return;
+    }
+
     if (!Number.isInteger(+questionsCountPerTest)) {
       setError('Введите число в поле "Количество вопросов в тесте"');
       return;
@@ -221,9 +234,7 @@ const UploadTest: React.FC = () => {
         >
           {testFiles.length > 0 ? 'Загрузить еще' : 'Загрузить тест'}
         </Button>
-        <Button disabled={testFiles.length === 0} onClick={startTest}>
-          Начать тест
-        </Button>
+        <Button onClick={startTest}>Начать тест</Button>
         <input
           ref={inputRef}
           id="file-upload"
