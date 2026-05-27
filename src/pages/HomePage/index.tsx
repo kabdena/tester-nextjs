@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import UploadTest from '@/components/UploadTest';
+import FormatHelp from '@/components/FormatHelp';
 import Footer from '@/components/Footer';
 
 const HomePage = () => {
@@ -30,6 +31,7 @@ const HomePage = () => {
 
         <div className="animate-fade-up delay-3">
           <UploadTest />
+          <FormatHelp />
         </div>
       </div>
 

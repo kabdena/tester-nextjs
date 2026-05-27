@@ -234,22 +234,29 @@ const UploadTest: React.FC = () => {
         />
       </div>
 
-      {/* Question count input */}
-      <div className="flex gap-2 mt-4 items-center justify-center">
-        <span className="text-xs text-text-muted">
-          Количество вопросов в тесте
-        </span>
-        <input
-          className="bg-surface-raised border border-border-default rounded-lg w-14 py-1.5 text-xs text-center text-text-primary focus:border-accent transition-colors duration-200"
-          min={10}
-          max={999}
-          value={questionsCountPerTest}
-          onChange={(e) => {
-            setError('');
-            setQuestionsCountPerTest(e.target.value);
-          }}
-        />
-      </div>
+      {/* Question count input — only after a test is uploaded */}
+      {testFiles.length > 0 && (
+        <div className="flex flex-col items-center gap-1.5 mt-4 animate-fade-up">
+          <div className="flex gap-2 items-center justify-center">
+            <span className="text-xs text-text-muted">
+              Сколько вопросов задать
+            </span>
+            <input
+              className="bg-surface-raised border border-border-default rounded-lg w-14 py-1.5 text-xs text-center text-text-primary focus:border-accent transition-colors duration-200"
+              min={10}
+              max={999}
+              value={questionsCountPerTest}
+              onChange={(e) => {
+                setError('');
+                setQuestionsCountPerTest(e.target.value);
+              }}
+            />
+          </div>
+          <span className="text-[11px] text-text-muted/80">
+            Выберем случайно из {allTestFilesQuestionCount} загруженных
+          </span>
+        </div>
+      )}
 
       {/* Uploaded files list */}
       {testFiles.length > 0 && (
