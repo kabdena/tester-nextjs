@@ -3,6 +3,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import mammoth from 'mammoth';
 import { getEndOfTheWord } from '@/utils/utils';
+import { reachGoal } from '@/utils/metrika';
 import Button from '@/components/Button';
 import { useRouter } from 'next/navigation';
 
@@ -63,6 +64,7 @@ const UploadTest: React.FC = () => {
 
         if (testFileIsExists) {
           setError('Этот тест вы уже загружали');
+          reachGoal('upload_duplicate');
           return;
         }
 
@@ -70,6 +72,7 @@ const UploadTest: React.FC = () => {
           setError(
             'В файле не найдено ни одного вопроса. Проверьте формат — теги <question> и <variant> должны стоять в начале строки.',
           );
+          reachGoal('upload_empty');
           return;
         }
 
@@ -86,6 +89,7 @@ const UploadTest: React.FC = () => {
         setError(
           'Не удалось разобрать .docx file. Пожалуйста, проверьте формат файла.',
         );
+        reachGoal('upload_parse_error');
       } finally {
         setIsLoading(false);
         if (inputRef.current) {
@@ -95,12 +99,14 @@ const UploadTest: React.FC = () => {
     } else {
       setIsLoading(false);
       setError('Пожалуйста, загрузите действительный файл .docx.');
+      reachGoal('upload_invalid_format');
     }
   };
 
   const startTest = () => {
     if (testFiles.length === 0) {
       setError('Сначала загрузите тест');
+      reachGoal('start_without_test');
       return;
     }
 

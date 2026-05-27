@@ -1,14 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { reachGoal } from '@/utils/metrika';
 
-declare global {
-  interface Window {
-    ym?: (counterId: number, action: string, goal: string) => void;
-  }
-}
-
-const METRIKA_COUNTER_ID = 101586893;
 const SHARE_TITLE = 'Тестер для Platonus';
 const SHARE_TEXT =
   'Прогоняй тесты перед сессией — загрузи свой .docx и проверь знания';
@@ -19,7 +13,7 @@ const ShareButton = () => {
   const handleShare = async () => {
     const url = window.location.origin;
 
-    window.ym?.(METRIKA_COUNTER_ID, 'reachGoal', 'share');
+    reachGoal('share');
 
     if (navigator.share) {
       try {
