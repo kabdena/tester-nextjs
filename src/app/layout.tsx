@@ -5,9 +5,59 @@ import Script from 'next/script';
 import Image from 'next/image';
 import ThemeToggle from '@/components/ThemeToggle';
 
+const SITE_URL = 'https://tester-ayan.vercel.app';
+const SITE_NAME = 'Тестер для Platonus';
+const SITE_DESCRIPTION =
+  'Бесплатный онлайн-тренажёр тестов для Platonus. Загрузите свой файл .docx с вопросами и прорешайте тест онлайн перед сессией — без регистрации.';
+
 export const metadata: Metadata = {
-  title: 'Тестер для Platonus',
-  description: 'Тестер для Platonus by Кабден Аян',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Тестер для Platonus — онлайн-тренажёр тестов',
+    template: '%s — Тестер для Platonus',
+  },
+  description: SITE_DESCRIPTION,
+  keywords: [
+    'платонус тестер',
+    'platonus тест',
+    'тестер для platonus',
+    'тесты онлайн',
+    'подготовка к тестированию',
+    'тренажёр тестов',
+    'тесты для студентов',
+    'прохождение тестов онлайн',
+    'platonus',
+    'тестер ayan',
+  ],
+  authors: [{ name: 'Кабден Аян', url: 'https://t.me/kabdena' }],
+  creator: 'Кабден Аян',
+  applicationName: SITE_NAME,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'ru_RU',
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: 'Тестер для Platonus — онлайн-тренажёр тестов',
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Тестер для Platonus — онлайн-тренажёр тестов',
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({
