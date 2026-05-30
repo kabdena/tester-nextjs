@@ -5,6 +5,7 @@ import Footer from '@/components/Footer';
 import ShareButton from '@/components/ShareButton';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { loadQuestions } from '@/utils/questionsStore';
 
 type Question = {
   question: string;
@@ -20,7 +21,7 @@ const Index = () => {
 
   useEffect(() => {
     setResults(JSON.parse(localStorage.getItem('results') || '[]'));
-    setQuestions(JSON.parse(localStorage.getItem('questions') || '[]'));
+    loadQuestions<Question>().then(setQuestions);
     setSelectedAnswers(JSON.parse(localStorage.getItem('selectedAnswers') || '{}'));
   }, []);
 

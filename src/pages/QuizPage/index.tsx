@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import Footer from '@/components/Footer';
+import { loadQuestions } from '@/utils/questionsStore';
 
 type Question = {
   question: string;
@@ -21,7 +22,7 @@ const Index = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
 
   useEffect(() => {
-    setQuestions(JSON.parse(localStorage.getItem('questions') || '[]'));
+    loadQuestions<Question>().then(setQuestions);
   }, []);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);

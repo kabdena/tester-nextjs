@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import mammoth from 'mammoth';
 import { getEndOfTheWord } from '@/utils/utils';
 import { reachGoal } from '@/utils/metrika';
+import { saveQuestions } from '@/utils/questionsStore';
 import Button from '@/components/Button';
 import { useRouter } from 'next/navigation';
 
@@ -103,7 +104,7 @@ const UploadTest: React.FC = () => {
     }
   };
 
-  const startTest = () => {
+  const startTest = async () => {
     if (testFiles.length === 0) {
       setError('Сначала загрузите тест');
       reachGoal('start_without_test');
@@ -127,7 +128,13 @@ const UploadTest: React.FC = () => {
       }))
       .slice(0, Math.max(1, +questionsCountPerTest));
 
-    localStorage.setItem('questions', JSON.stringify(preparedQuestions));
+    try {
+      await saveQuestions(preparedQuestions);
+    } catch (err) {
+      console.error(err);
+      setError('Не удалось сохранить тест. Попробуйте уменьшить количество картинок.');
+      return;
+    }
     router.push('/quiz');
   };
 
