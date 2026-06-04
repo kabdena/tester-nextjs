@@ -2,6 +2,7 @@
 
 import React, { useMemo, useRef, useState } from 'react';
 import mammoth from 'mammoth';
+import Link from 'next/link';
 import { getEndOfTheWord } from '@/utils/utils';
 import { reachGoal } from '@/utils/metrika';
 import { saveQuestions } from '@/utils/questionsStore';
@@ -27,6 +28,7 @@ type TestFile = {
 
 const UploadTest: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
+  const [suggestConverter, setSuggestConverter] = useState(false);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -40,6 +42,7 @@ const UploadTest: React.FC = () => {
     const file = event.target.files?.[0];
     setIsLoading(true);
     setError(null);
+    setSuggestConverter(false);
 
     if (
       file &&
@@ -71,8 +74,9 @@ const UploadTest: React.FC = () => {
 
         if (parsedQuestions.length === 0) {
           setError(
-            'В файле не найдено ни одного вопроса. Проверьте формат — теги <question> и <variant> должны стоять в начале строки.',
+            'В файле не найдено ни одного вопроса в формате тестера (теги <question> и <variant> в начале строки).',
           );
+          setSuggestConverter(true);
           reachGoal('upload_empty');
           return;
         }
@@ -234,6 +238,20 @@ const UploadTest: React.FC = () => {
       {error && (
         <div className="glass-card border-error-border! bg-error-bg! text-error text-sm text-center mb-6 py-3 px-4 animate-scale-in">
           {error}
+          {suggestConverter && (
+            <div className="mt-2 text-text-secondary">
+              Похоже, тест в другом формате (вопросы 1., 2., … и варианты
+              списком).{' '}
+              <Link
+                href="/convert"
+                onClick={() => reachGoal('convert_hint_click')}
+                className="text-accent hover:text-accent-hover underline underline-offset-2 transition-colors"
+              >
+                Попробуйте конвертер
+              </Link>
+              .
+            </div>
+          )}
         </div>
       )}
 
