@@ -38,6 +38,10 @@ const normalizeText = (raw: string): string =>
 
 const QUESTION_NUMBER_RE = /^\s*\d+\s*[.)]\s+/;
 
+// Минимальная длина пункта-списка, чтобы в «списочном» формате (где вопросы и
+// варианты — всё <li>) считать его новым вопросом-виньеткой, а не вариантом.
+const LIST_QUESTION_MIN_LEN = 140;
+
 // Срезает ведущую нумерацию вопроса («12. », «3) ») и нормализует.
 const stripQuestionNumber = (text: string): string =>
   normalizeText(text.replace(QUESTION_NUMBER_RE, ''));
@@ -51,55 +55,20 @@ const collectImages = (el: Element): string[] =>
     .map((img) => img.getAttribute('src') || '')
     .filter(Boolean);
 
-/**
- * Парсит HTML (полученный из mammoth) «нумерованного» формата выгрузки:
- * вопрос — абзац, начинающийся с «N.»; варианты — пункты списка <li> под ним;
- * правильный вариант помечен жирным (<strong>) и/или префиксом «+».
- */
-export const parseSourceHtml = (html: string): ConvertResult => {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+type SourceItem = {
+  kind: 'p' | 'li' | 'table';
+  text: string;
+  numbered: boolean;
+  correct: boolean;
+  images: string[];
+};
 
-  const questions: ConvertQuestion[] = [];
-  const warnings: ConvertWarnings = {
-    tablesFound: 0,
-    skippedNoVariants: 0,
-    questionsWithoutCorrect: 0,
-    imagesCount: 0,
-  };
+type WorkingQuestion = ConvertQuestion & { hasCorrect: boolean };
 
-  let current: ConvertQuestion | null = null;
+// Собирает плоский упорядоченный список значимых узлов документа.
+const collectItems = (root: Element): SourceItem[] => {
+  const items: SourceItem[] = [];
 
-  const finishCurrent = () => {
-    if (!current) return;
-    if (current.variants.length === 0) {
-      warnings.skippedNoVariants += 1;
-    } else {
-      // Правильный вариант должен идти первым — целевой парсер берёт его по позиции.
-      const correctIndex = current.variants.findIndex((v) => v.correct);
-      if (correctIndex > 0) {
-        const [correct] = current.variants.splice(correctIndex, 1);
-        current.variants.unshift(correct);
-      }
-      if (correctIndex === -1) {
-        warnings.questionsWithoutCorrect += 1;
-      }
-      questions.push(current);
-    }
-    current = null;
-  };
-
-  const addVariant = (li: Element) => {
-    if (!current) return;
-    const rawText = li.textContent || '';
-    const isCorrect =
-      !!li.querySelector('strong, b') || /^\s*\+/.test(normalizeText(rawText));
-    const text = stripCorrectMarker(rawText);
-    if (!text) return;
-    current.variants.push({ text, correct: isCorrect });
-  };
-
-  // Рекурсивный обход верхнего уровня по порядку появления узлов.
   const walk = (node: Element) => {
     for (const child of Array.from(node.children)) {
       const tag = child.tagName.toLowerCase();
@@ -109,58 +78,165 @@ export const parseSourceHtml = (html: string): ConvertResult => {
         continue;
       }
 
-      if (tag === 'li') {
-        addVariant(child);
-        continue;
-      }
-
       if (tag === 'table') {
-        warnings.tablesFound += 1;
+        items.push({
+          kind: 'table',
+          text: '',
+          numbered: false,
+          correct: false,
+          images: [],
+        });
         continue;
       }
 
-      if (tag === 'p' || /^h[1-6]$/.test(tag)) {
-        const text = child.textContent || '';
-        const images = collectImages(child);
-
-        if (QUESTION_NUMBER_RE.test(text)) {
-          finishCurrent();
-          current = {
-            question: stripQuestionNumber(text),
-            variants: [],
-            images,
-          };
-          warnings.imagesCount += images.length;
-          continue;
-        }
-
-        // Абзац без номера: продолжение текста вопроса (если вариантов ещё нет),
-        // иначе — заголовок-разделитель между вопросами, игнорируем.
-        if (current && current.variants.length === 0) {
-          const extra = normalizeText(text);
-          if (extra) {
-            current.question = normalizeText(`${current.question} ${extra}`);
-          }
-          if (images.length) {
-            current.images.push(...images);
-            warnings.imagesCount += images.length;
-          }
-        } else if (current && images.length) {
-          current.images.push(...images);
-          warnings.imagesCount += images.length;
-        }
+      if (tag === 'li' || tag === 'p' || /^h[1-6]$/.test(tag)) {
+        const raw = child.textContent || '';
+        const text = normalizeText(raw);
+        const correct =
+          !!child.querySelector('strong, b') || /^\s*\+/.test(text);
+        items.push({
+          kind: tag === 'li' ? 'li' : 'p',
+          text,
+          numbered: tag !== 'li' && QUESTION_NUMBER_RE.test(raw),
+          correct,
+          images: collectImages(child),
+        });
         continue;
       }
 
-      // Прочие контейнеры — заходим внутрь.
       if (child.children.length) {
         walk(child);
       }
     }
   };
 
-  walk(doc.body);
-  finishCurrent();
+  walk(root);
+  return items;
+};
+
+/**
+ * Парсит HTML (от mammoth) теста в «нумерованном» формате. Поддерживает два
+ * варианта вёрстки выгрузок Platonus:
+ *  1) абзацный — вопрос это абзац с номером «N.», варианты идут списком <li>;
+ *  2) списочный — и вопрос, и варианты являются пунктами <li> авто-нумерованного
+ *     списка (номер не попадает в текст), вопрос-виньетка распознаётся по «?»
+ *     либо по заметной длине.
+ * Правильный вариант помечен жирным (<strong>) и/или префиксом «+».
+ */
+export const parseSourceHtml = (html: string): ConvertResult => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const items = collectItems(doc.body);
+
+  // Определяем формат: если нумерованных абзацев мало относительно числа
+  // правильных меток — значит вопросы свёрстаны списком (вариант 2).
+  const numberedP = items.filter((i) => i.kind === 'p' && i.numbered).length;
+  const correctCount = items.filter((i) => i.correct).length;
+  const listMode = numberedP < Math.max(5, correctCount * 0.3);
+
+  const working: WorkingQuestion[] = [];
+  let current: WorkingQuestion | null = null;
+  let pendingImages: string[] = [];
+  let tablesFound = 0;
+
+  const startQuestion = (
+    question: string,
+    images: string[],
+  ): WorkingQuestion => {
+    const q: WorkingQuestion = {
+      question,
+      variants: [],
+      images: [...pendingImages, ...images],
+      hasCorrect: false,
+    };
+    pendingImages = [];
+    working.push(q);
+    return q;
+  };
+
+  for (const it of items) {
+    if (it.kind === 'table') {
+      tablesFound += 1;
+      continue;
+    }
+
+    const endsWithQuestion = it.text.endsWith('?');
+
+    let isStart = false;
+    if (it.kind === 'p' && it.numbered) {
+      isStart = true;
+    } else if (current === null) {
+      isStart = endsWithQuestion;
+    } else if (endsWithQuestion) {
+      // «?» начинает новый вопрос, только если у текущего уже есть варианты —
+      // иначе это продолжение многострочного ствола вопроса.
+      isStart = current.variants.length > 0;
+    } else if (
+      listMode &&
+      it.kind === 'li' &&
+      current.hasCorrect &&
+      !it.correct &&
+      it.text.length >= LIST_QUESTION_MIN_LEN
+    ) {
+      isStart = true;
+    }
+
+    if (isStart) {
+      current = startQuestion(
+        it.kind === 'p' ? stripQuestionNumber(it.text) : it.text,
+        it.images,
+      );
+      continue;
+    }
+
+    if (current === null) {
+      pendingImages.push(...it.images);
+      continue;
+    }
+
+    current.images.push(...it.images);
+
+    if (it.kind === 'li') {
+      const text = stripCorrectMarker(it.text);
+      if (text) {
+        current.variants.push({ text, correct: it.correct });
+        if (it.correct) current.hasCorrect = true;
+      }
+    } else if (current.variants.length === 0 && it.text) {
+      // Абзац без номера до первого варианта — продолжение ствола вопроса.
+      current.question = normalizeText(`${current.question} ${it.text}`);
+    }
+  }
+
+  const questions: ConvertQuestion[] = [];
+  const warnings: ConvertWarnings = {
+    tablesFound,
+    skippedNoVariants: 0,
+    questionsWithoutCorrect: 0,
+    imagesCount: 0,
+  };
+
+  for (const q of working) {
+    if (q.variants.length === 0) {
+      warnings.skippedNoVariants += 1;
+      continue;
+    }
+    // Правильный вариант должен идти первым — целевой парсер берёт его по позиции.
+    const correctIndex = q.variants.findIndex((v) => v.correct);
+    if (correctIndex > 0) {
+      const [correct] = q.variants.splice(correctIndex, 1);
+      q.variants.unshift(correct);
+    }
+    if (correctIndex === -1) {
+      warnings.questionsWithoutCorrect += 1;
+    }
+    warnings.imagesCount += q.images.length;
+    questions.push({
+      question: q.question,
+      variants: q.variants,
+      images: q.images,
+    });
+  }
 
   return { questions, warnings };
 };
