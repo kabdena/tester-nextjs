@@ -6,6 +6,7 @@ import ShareButton from '@/components/ShareButton';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { loadQuestions } from '@/utils/questionsStore';
+import { reachGoal } from '@/utils/metrika';
 
 type Question = {
   question: string;
@@ -44,6 +45,15 @@ const Index = () => {
   };
 
   const grade = getGrade();
+
+  // Вопросы остаются в IndexedDB, поэтому тест можно пройти заново
+  // без повторного прикрепления файла — достаточно сбросить ответы.
+  const handleRestart = () => {
+    reachGoal('test_restart');
+    localStorage.setItem('results', JSON.stringify([]));
+    localStorage.removeItem('selectedAnswers');
+    router.push('/quiz');
+  };
 
   return (
     <div className="min-h-svh flex flex-col items-center p-4 sm:p-8">
@@ -140,7 +150,14 @@ const Index = () => {
         </div>
 
         <div className="animate-fade-up delay-5 flex flex-col items-center gap-4">
-          <Button onClick={() => router.push('/')}>Перейти на главную</Button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {questions.length > 0 && (
+              <Button onClick={handleRestart}>Пройти заново</Button>
+            )}
+            <Button variant={'outlined'} onClick={() => router.push('/')}>
+              На главную
+            </Button>
+          </div>
           <ShareButton />
         </div>
       </div>
