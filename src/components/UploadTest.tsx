@@ -85,16 +85,6 @@ const UploadTest: React.FC = () => {
           return;
         }
 
-        if (process.env.NODE_ENV !== 'development') {
-          const fd = new FormData();
-          fd.append('file', file);
-
-          await fetch('/api/upload', {
-            method: 'POST',
-            body: fd,
-          });
-        }
-
         const content = await readDocxFile(file);
         let parsedQuestions = parseQuestions(content);
         let autoConverted = false;
