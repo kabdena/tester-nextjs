@@ -11,6 +11,7 @@ import {
   type ConvertQuestion,
 } from '@/utils/convertTest';
 import { saveQuestions } from '@/utils/questionsStore';
+import { resetProgress } from '@/utils/quizProgress';
 import { getEndOfTheWord } from '@/utils/utils';
 
 const WORD_MIME =
@@ -157,8 +158,7 @@ const TestConverter: React.FC = () => {
       );
       return;
     }
-    localStorage.setItem('results', JSON.stringify([]));
-    localStorage.removeItem('selectedAnswers');
+    resetProgress();
     reachGoal('convert_start_test');
     router.push('/quiz');
   };
@@ -280,8 +280,8 @@ const TestConverter: React.FC = () => {
             {testFiles.length > 1 && (
               <div className="text-xs text-text-muted mt-1">
                 ({testFiles.length}{' '}
-                {getEndOfTheWord(testFiles.length, ['файл', 'файла', 'файлов'])},{' '}
-                {totalQuestions}{' '}
+                {getEndOfTheWord(testFiles.length, ['файл', 'файла', 'файлов'])}
+                , {totalQuestions}{' '}
                 {getEndOfTheWord(totalQuestions, [
                   'вопрос',
                   'вопроса',
@@ -335,7 +335,7 @@ const TestConverter: React.FC = () => {
                 <div
                   onClick={() => handleDeleteTestFile(index)}
                   title={'Удалить файл'}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                  className="shrink-0 p-2 -m-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
                 >
                   <svg
                     className="size-4 text-error hover:text-error/80 transition-colors"

@@ -7,6 +7,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { loadQuestions } from '@/utils/questionsStore';
 import { reachGoal } from '@/utils/metrika';
+import {
+  formatElapsed,
+  getAnswerResults,
+  loadProgress,
+  resetProgress,
+} from '@/utils/quizProgress';
 
 type Question = {
   question: string;
@@ -15,16 +21,28 @@ type Question = {
   images?: string[];
 };
 
+const SITE_URL = 'https://tester-ayan.vercel.app';
+
 const Index = () => {
-  const [results, setResults] = useState<boolean[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<
+    Record<number, number>
+  >({});
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
-    setResults(JSON.parse(localStorage.getItem('results') || '[]'));
+    const progress = loadProgress();
+    setSelectedAnswers(progress.selectedAnswers);
+    setElapsedSeconds(progress.elapsedSeconds);
     loadQuestions<Question>().then(setQuestions);
-    setSelectedAnswers(JSON.parse(localStorage.getItem('selectedAnswers') || '{}'));
   }, []);
+
+  // Результаты считаем по индексу вопроса, а не по порядку ответов —
+  // иначе при ответах вразнобой ошибки показывались не у тех вопросов.
+  const results = useMemo(
+    () => getAnswerResults(questions, selectedAnswers),
+    [questions, selectedAnswers],
+  );
 
   const wrongQuestions = useMemo(() => {
     return questions
@@ -32,15 +50,22 @@ const Index = () => {
       .filter((_, i) => results[i] === false);
   }, [questions, results]);
 
-  const correctAnswers = results.filter((res) => res).length;
-  const totalQuestions = results.length;
-  const percentage = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  const correctAnswers = results.filter((res) => res === true).length;
+  const totalQuestions = results.filter((res) => res !== undefined).length;
+  const percentage =
+    totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
   const router = useRouter();
+
+  const telegramShareUrl = useMemo(() => {
+    const text = `Мой результат в Тестере для Platonus:${Math.round(percentage)}% (${correctAnswers} из ${totalQuestions}). Загружай свой .docx и готовься к сессии 👇`;
+    return `https://t.me/share/url?url=${encodeURIComponent(SITE_URL)}&text=${encodeURIComponent(text)}`;
+  }, [percentage, correctAnswers, totalQuestions]);
 
   const getGrade = () => {
     if (percentage >= 90) return { label: 'Отлично', color: 'text-success' };
     if (percentage >= 70) return { label: 'Хорошо', color: 'text-accent' };
-    if (percentage >= 50) return { label: 'Удовлетворительно', color: 'text-accent' };
+    if (percentage >= 50)
+      return { label: 'Удовлетворительно', color: 'text-accent' };
     return { label: 'Нужно повторить', color: 'text-error' };
   };
 
@@ -50,15 +75,14 @@ const Index = () => {
   // без повторного прикрепления файла — достаточно сбросить ответы.
   const handleRestart = () => {
     reachGoal('test_restart');
-    localStorage.setItem('results', JSON.stringify([]));
-    localStorage.removeItem('selectedAnswers');
+    resetProgress();
     router.push('/quiz');
   };
 
   return (
     <div className="min-h-svh flex flex-col items-center p-4 sm:p-8">
       <div className="flex-1" />
-      <div className="glass-card p-8 sm:p-12 max-w-md w-full text-center animate-scale-in">
+      <div className="glass-card p-6 sm:p-12 max-w-md w-full text-center animate-scale-in">
         {/* Decorative accent line */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="h-px w-12 bg-gradient-to-r from-transparent to-accent/40" />
@@ -70,8 +94,13 @@ const Index = () => {
           Результаты теста
         </h2>
 
-        <p className={`text-lg font-medium ${grade.color} mb-8 animate-fade-up delay-1`}>
+        <p
+          className={`text-lg font-medium ${grade.color} mb-1 animate-fade-up delay-1`}
+        >
           {grade.label}
+        </p>
+        <p className="text-xs text-text-muted mb-8 animate-fade-up delay-1">
+          Время: {formatElapsed(elapsedSeconds)}
         </p>
 
         {/* Score circle */}
@@ -113,7 +142,9 @@ const Index = () => {
         {/* Stats */}
         <div className="flex justify-center gap-8 mb-8 animate-fade-up delay-3">
           <div>
-            <div className="text-2xl font-bold text-success">{correctAnswers}</div>
+            <div className="text-2xl font-bold text-success">
+              {correctAnswers}
+            </div>
             <div className="text-xs text-text-muted uppercase tracking-wider">
               Верно
             </div>
@@ -158,6 +189,25 @@ const Index = () => {
               На главную
             </Button>
           </div>
+          {totalQuestions > 0 && (
+            <a
+              href={telegramShareUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => reachGoal('share_telegram')}
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap text-white bg-[#229ED9] hover:bg-[#1c8cc2] transition-colors duration-200"
+            >
+              <svg
+                className="size-4"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M21.94 4.3a1.1 1.1 0 0 0-1.5-1.2L2.7 10.03c-.98.38-.97 1.77.02 2.13l4.43 1.6 1.7 5.28c.22.68 1.07.9 1.59.4l2.5-2.4 4.63 3.42c.62.46 1.5.12 1.66-.63L21.94 4.3zM9.86 13.94l-.37 3.33-1.23-3.83 9.3-6.1-7.7 6.6z" />
+              </svg>
+              Отправить результат в Telegram
+            </a>
+          )}
           <ShareButton />
         </div>
       </div>
@@ -170,12 +220,15 @@ const Index = () => {
           {wrongQuestions.map(({ question, index }) => {
             const selectedIdx = selectedAnswers[index];
             const correctVariant = question.variants.find((v) => v.correct);
-            const selectedVariant = selectedIdx !== undefined ? question.variants[selectedIdx] : null;
+            const selectedVariant =
+              selectedIdx !== undefined ? question.variants[selectedIdx] : null;
 
             return (
               <div key={index} className="glass-card p-5 text-left">
                 <p className="text-sm sm:text-base text-text-primary mb-3">
-                  <span className="text-accent font-medium mr-2">{index + 1}.</span>
+                  <span className="text-accent font-medium mr-2">
+                    {index + 1}.
+                  </span>
                   {question.question}
                 </p>
                 {selectedVariant && (

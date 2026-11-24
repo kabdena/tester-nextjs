@@ -1,10 +1,4 @@
-import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  ImageRun,
-} from 'docx';
+import { Document, Packer, Paragraph, TextRun, ImageRun } from 'docx';
 
 export type ConvertVariant = {
   text: string;
@@ -46,9 +40,20 @@ const LIST_QUESTION_MIN_LEN = 140;
 const stripQuestionNumber = (text: string): string =>
   normalizeText(text.replace(QUESTION_NUMBER_RE, ''));
 
-// Срезает ведущий «+» (маркер правильного ответа) и нормализует.
+// Буквенная метка варианта: «A) », «b. », «В) » (латиница и кириллица).
+const VARIANT_LETTER_RE = /^\s*\+?\s*[A-Za-zА-ЯЁа-яё]\s*[.)]\s+/;
+
+// Маркер правильного ответа «+» — в начале или в конце строки.
+const CORRECT_MARKER_RE = /^\s*\+|\+\s*$/;
+
+// Срезает маркеры «+» в начале/конце и буквенную метку варианта, нормализует.
 const stripCorrectMarker = (text: string): string =>
-  normalizeText(text.replace(/^\s*\+\s*/, ''));
+  normalizeText(
+    text
+      .replace(/^\s*\+\s*/, '')
+      .replace(VARIANT_LETTER_RE, '')
+      .replace(/\s*\+\s*$/, ''),
+  );
 
 const collectImages = (el: Element): string[] =>
   Array.from(el.querySelectorAll('img'))
@@ -59,6 +64,8 @@ type SourceItem = {
   kind: 'p' | 'li' | 'table';
   text: string;
   numbered: boolean;
+  // абзац с буквенной меткой «A) …» — вариант ответа, а не текст вопроса
+  lettered: boolean;
   correct: boolean;
   images: string[];
 };
@@ -83,6 +90,7 @@ const collectItems = (root: Element): SourceItem[] => {
           kind: 'table',
           text: '',
           numbered: false,
+          lettered: false,
           correct: false,
           images: [],
         });
@@ -93,11 +101,15 @@ const collectItems = (root: Element): SourceItem[] => {
         const raw = child.textContent || '';
         const text = normalizeText(raw);
         const correct =
-          !!child.querySelector('strong, b') || /^\s*\+/.test(text);
+          !!child.querySelector('strong, b') || CORRECT_MARKER_RE.test(text);
         items.push({
           kind: tag === 'li' ? 'li' : 'p',
           text,
           numbered: tag !== 'li' && QUESTION_NUMBER_RE.test(raw),
+          lettered:
+            tag !== 'li' &&
+            !QUESTION_NUMBER_RE.test(raw) &&
+            VARIANT_LETTER_RE.test(text),
           correct,
           images: collectImages(child),
         });
@@ -121,7 +133,9 @@ const collectItems = (root: Element): SourceItem[] => {
  *  2) списочный — и вопрос, и варианты являются пунктами <li> авто-нумерованного
  *     списка (номер не попадает в текст), вопрос-виньетка распознаётся по «?»
  *     либо по заметной длине.
- * Правильный вариант помечен жирным (<strong>) и/или префиксом «+».
+ * Варианты — пункты списка <li> либо абзацы с буквенной меткой «A) …».
+ * Правильный вариант помечен жирным (<strong>) и/или знаком «+» в начале или
+ * в конце строки.
  */
 export const parseSourceHtml = (html: string): ConvertResult => {
   const parser = new DOMParser();
@@ -196,7 +210,7 @@ export const parseSourceHtml = (html: string): ConvertResult => {
 
     current.images.push(...it.images);
 
-    if (it.kind === 'li') {
+    if (it.kind === 'li' || it.lettered) {
       const text = stripCorrectMarker(it.text);
       if (text) {
         current.variants.push({ text, correct: it.correct });
@@ -276,7 +290,9 @@ const parseDataUri = (uri: string): ParsedImage | null => {
  * Собирает .docx в формате тестера: каждый вопрос — абзац «<question>…»,
  * затем картинки, затем варианты «<variant>…» (правильный первым, с «+»).
  */
-export const buildTesterDocx = (questions: ConvertQuestion[]): Promise<Blob> => {
+export const buildTesterDocx = (
+  questions: ConvertQuestion[],
+): Promise<Blob> => {
   const children: Paragraph[] = [];
 
   for (const q of questions) {

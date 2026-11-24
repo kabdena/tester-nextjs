@@ -1,11 +1,17 @@
 'use client';
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import mammoth from 'mammoth';
 import Link from 'next/link';
 import { getEndOfTheWord } from '@/utils/utils';
 import { reachGoal } from '@/utils/metrika';
-import { saveQuestions } from '@/utils/questionsStore';
+import {
+  loadUploadedFiles,
+  saveQuestions,
+  saveUploadedFiles,
+} from '@/utils/questionsStore';
+import { resetProgress } from '@/utils/quizProgress';
+import { parseSourceHtml } from '@/utils/convertTest';
 import Button from '@/components/Button';
 import { useRouter } from 'next/navigation';
 
@@ -21,20 +27,46 @@ type Variant = {
   correct: boolean;
 };
 
+// Файл в списке «Загруженные файлы» вместе со своими вопросами — так удаление
+// файла убирает именно его вопросы, а список переживает перезагрузку.
 type TestFile = {
   name: string;
-  questionsCount: number;
+  questions: Question[];
+  // распознан не в формате тестера, а автоматически «нумерованным» парсером
+  autoConverted?: boolean;
 };
+
+const DOCX_MIME =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 const UploadTest: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [suggestConverter, setSuggestConverter] = useState(false);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [testFiles, setTestFiles] = useState<TestFile[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [isRestored, setIsRestored] = useState(false);
   const [questionsCountPerTest, setQuestionsCountPerTest] = useState('100');
+
+  // Подтягиваем файлы, загруженные в прошлый раз.
+  useEffect(() => {
+    loadUploadedFiles<TestFile>()
+      .then((files) => {
+        if (files.length > 0) {
+          setTestFiles(files);
+          reachGoal('uploaded_files_restored');
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setIsRestored(true));
+  }, []);
+
+  useEffect(() => {
+    if (!isRestored) return;
+    saveUploadedFiles(testFiles).catch((err) => console.error(err));
+  }, [isRestored, testFiles]);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -42,14 +74,17 @@ const UploadTest: React.FC = () => {
     const file = event.target.files?.[0];
     setIsLoading(true);
     setError(null);
+    setNotice(null);
     setSuggestConverter(false);
 
-    if (
-      file &&
-      file.type ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ) {
+    if (file && file.type === DOCX_MIME) {
       try {
+        if (testFiles.some((testFile) => testFile.name === file.name)) {
+          setError('Этот тест вы уже загружали');
+          reachGoal('upload_duplicate');
+          return;
+        }
+
         if (process.env.NODE_ENV !== 'development') {
           const fd = new FormData();
           fd.append('file', file);
@@ -61,15 +96,30 @@ const UploadTest: React.FC = () => {
         }
 
         const content = await readDocxFile(file);
-        const parsedQuestions = parseQuestions(content);
-        const testFileIsExists = testFiles.find(
-          (testFile) => testFile.name === file.name,
-        );
+        let parsedQuestions = parseQuestions(content);
+        let autoConverted = false;
 
-        if (testFileIsExists) {
-          setError('Этот тест вы уже загружали');
-          reachGoal('upload_duplicate');
-          return;
+        // Нет тегов <question>/<variant> — пробуем «нумерованный» формат
+        // (вопросы 1., 2., …, правильный ответ жирным или с «+»), как в конвертере.
+        if (parsedQuestions.length === 0) {
+          const { questions: converted, warnings } = parseSourceHtml(content);
+          if (converted.length > 0) {
+            parsedQuestions = converted.map((q) => ({
+              ...q,
+              type: 'question',
+            }));
+            autoConverted = true;
+            reachGoal('upload_auto_converted');
+            setNotice(
+              `Файл не в формате тестера — распознали ${converted.length} ${getEndOfTheWord(
+                converted.length,
+                ['вопрос', 'вопроса', 'вопросов'],
+              )} автоматически.` +
+                (warnings.questionsWithoutCorrect > 0
+                  ? ` Без отметки правильного ответа: ${warnings.questionsWithoutCorrect}.`
+                  : ''),
+            );
+          }
         }
 
         if (parsedQuestions.length === 0) {
@@ -83,16 +133,12 @@ const UploadTest: React.FC = () => {
 
         setTestFiles((prevState) => [
           ...prevState,
-          {
-            name: file.name,
-            questionsCount: parsedQuestions.length,
-          },
+          { name: file.name, questions: parsedQuestions, autoConverted },
         ]);
-        setQuestions((prevState) => [...prevState, ...parsedQuestions]);
       } catch (err) {
         console.error(err);
         setError(
-          'Не удалось разобрать .docx file. Пожалуйста, проверьте формат файла.',
+          'Не удалось разобрать .docx файл. Пожалуйста, проверьте формат файла.',
         );
         reachGoal('upload_parse_error');
       } finally {
@@ -105,6 +151,9 @@ const UploadTest: React.FC = () => {
       setIsLoading(false);
       setError('Пожалуйста, загрузите действительный файл .docx.');
       reachGoal('upload_invalid_format');
+      if (inputRef.current) {
+        inputRef.current.value = '';
+      }
     }
   };
 
@@ -125,7 +174,8 @@ const UploadTest: React.FC = () => {
       return;
     }
 
-    const preparedQuestions = shuffleArray(questions)
+    const allQuestions = testFiles.flatMap((testFile) => testFile.questions);
+    const preparedQuestions = shuffleArray(allQuestions)
       .map((q) => ({
         ...q,
         variants: shuffleArray(q.variants),
@@ -136,9 +186,12 @@ const UploadTest: React.FC = () => {
       await saveQuestions(preparedQuestions);
     } catch (err) {
       console.error(err);
-      setError('Не удалось сохранить тест. Попробуйте уменьшить количество картинок.');
+      setError(
+        'Не удалось сохранить тест. Попробуйте уменьшить количество картинок.',
+      );
       return;
     }
+    resetProgress();
     router.push('/quiz');
   };
 
@@ -223,11 +276,14 @@ const UploadTest: React.FC = () => {
 
   const allTestFilesQuestionCount = useMemo(() => {
     return testFiles.reduce((acc, curr) => {
-      return acc + curr.questionsCount;
+      return acc + curr.questions.length;
     }, 0);
   }, [testFiles]);
 
+  const hasFiles = testFiles.length > 0;
+
   const handleDeleteTestFile = (index: number) => {
+    setNotice(null);
     setTestFiles((prevState) => [
       ...prevState.filter((_, fileIndex) => fileIndex !== index),
     ]);
@@ -255,17 +311,36 @@ const UploadTest: React.FC = () => {
         </div>
       )}
 
+      {notice && (
+        <div className="glass-card border-success-border! bg-success-bg! text-success text-sm text-center mb-6 py-3 px-4 animate-scale-in">
+          {notice}
+        </div>
+      )}
+
       <div className="flex gap-3 flex-wrap justify-center">
+        {/* Пока файла нет, главная кнопка — загрузка, а «Начать тест» неактивна:
+            раньше почти каждый четвёртый визит жал «Начать» без файла. */}
         <Button
-          variant={'outlined'}
-          disabled={isLoading}
+          variant={hasFiles ? 'outlined' : 'primary'}
+          disabled={isLoading || !isRestored}
           onClick={() => {
             inputRef.current?.click();
           }}
         >
-          {testFiles.length > 0 ? 'Загрузить еще' : 'Загрузить тест'}
+          {isLoading
+            ? 'Загружаем…'
+            : hasFiles
+              ? 'Загрузить еще'
+              : 'Загрузить тест'}
         </Button>
-        <Button onClick={startTest}>Начать тест</Button>
+        <Button
+          variant={hasFiles ? 'primary' : 'outlined'}
+          disabled={!hasFiles || isLoading}
+          title={hasFiles ? undefined : 'Сначала загрузите файл с тестом'}
+          onClick={startTest}
+        >
+          Начать тест
+        </Button>
         <input
           ref={inputRef}
           id="file-upload"
@@ -276,8 +351,15 @@ const UploadTest: React.FC = () => {
         />
       </div>
 
+      {isRestored && !hasFiles && (
+        <p className="text-xs text-text-muted mt-3">
+          Сначала загрузите файл .docx с вопросами — затем станет доступна
+          кнопка «Начать тест»
+        </p>
+      )}
+
       {/* Question count input — only after a test is uploaded */}
-      {testFiles.length > 0 && (
+      {hasFiles && (
         <div className="flex flex-col items-center gap-1.5 mt-4 animate-fade-up">
           <div className="flex gap-2 items-center justify-center">
             <span className="text-xs text-text-muted">
@@ -285,6 +367,7 @@ const UploadTest: React.FC = () => {
             </span>
             <input
               className="bg-surface-raised border border-border-default rounded-lg w-14 py-1.5 text-xs text-center text-text-primary focus:border-accent transition-colors duration-200"
+              inputMode="numeric"
               min={10}
               max={999}
               value={questionsCountPerTest}
@@ -354,19 +437,23 @@ const UploadTest: React.FC = () => {
                     {testFile.name}
                   </div>
                   <div className="text-text-muted text-xs truncate">
-                    {testFile.questionsCount}{' '}
-                    {getEndOfTheWord(testFile.questionsCount, [
+                    {testFile.questions.length}{' '}
+                    {getEndOfTheWord(testFile.questions.length, [
                       'вопрос',
                       'вопроса',
                       'вопросов',
                     ])}
+                    {testFile.autoConverted && ' · распознан автоматически'}
                   </div>
                 </div>
 
-                <div
+                {/* На телефоне hover нет — иконка удаления видна всегда */}
+                <button
+                  type="button"
                   onClick={() => handleDeleteTestFile(index)}
                   title={'Удалить тест'}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                  aria-label={`Удалить ${testFile.name}`}
+                  className="shrink-0 p-2 -m-2 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 cursor-pointer"
                 >
                   <svg
                     className="size-4 text-error hover:text-error/80 transition-colors"
@@ -379,7 +466,7 @@ const UploadTest: React.FC = () => {
                       fill="currentColor"
                     ></path>
                   </svg>
-                </div>
+                </button>
               </div>
             ))}
           </div>

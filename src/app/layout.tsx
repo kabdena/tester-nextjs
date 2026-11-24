@@ -8,7 +8,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 const SITE_URL = 'https://tester-ayan.vercel.app';
 const SITE_NAME = 'Тестер для Platonus';
 const SITE_DESCRIPTION =
-  'Бесплатный онлайн-тренажёр тестов для Platonus. Загрузите свой файл .docx с вопросами и прорешайте тест онлайн перед сессией — без регистрации.';
+  'Бесплатный онлайн-тренажёр тестов для Platonus. Загрузите свой файл .docx с вопросами и прорешайте тест онлайн перед сессией или рубежным контролем — без регистрации. Прогресс сохраняется.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -28,6 +28,10 @@ export const metadata: Metadata = {
     'прохождение тестов онлайн',
     'platonus',
     'тестер ayan',
+    'подготовка к сессии',
+    'рубежный контроль тест',
+    'тесты к экзамену онлайн',
+    'тренажёр тестов docx',
   ],
   authors: [{ name: 'Кабден Аян', url: 'https://t.me/kabdena' }],
   creator: 'Кабден Аян',

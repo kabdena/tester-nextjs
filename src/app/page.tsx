@@ -6,7 +6,7 @@ const jsonLd = {
   name: 'Тестер для Platonus',
   url: 'https://tester-ayan.vercel.app',
   description:
-    'Бесплатный онлайн-тренажёр тестов для Platonus. Загрузите свой файл .docx с вопросами и прорешайте тест онлайн перед сессией — без регистрации.',
+    'Бесплатный онлайн-тренажёр тестов для Platonus. Загрузите свой файл .docx с вопросами и прорешайте тест онлайн перед сессией или рубежным контролем — без регистрации.',
   applicationCategory: 'EducationalApplication',
   operatingSystem: 'Web',
   inLanguage: 'ru',

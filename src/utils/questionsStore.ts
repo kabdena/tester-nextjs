@@ -60,3 +60,16 @@ export const loadQuestions = async <T>(): Promise<T[]> => {
   const value = await idbGet<T[]>(QUESTIONS_KEY);
   return value ?? [];
 };
+
+// Загруженные на главной файлы вместе с их вопросами — чтобы при следующем
+// визите не загружать те же .docx заново.
+const UPLOADED_FILES_KEY = 'uploadedFiles';
+
+export const saveUploadedFiles = <T>(files: T[]): Promise<void> => {
+  return idbSet(UPLOADED_FILES_KEY, files);
+};
+
+export const loadUploadedFiles = async <T>(): Promise<T[]> => {
+  const value = await idbGet<T[]>(UPLOADED_FILES_KEY);
+  return value ?? [];
+};

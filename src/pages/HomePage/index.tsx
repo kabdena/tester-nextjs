@@ -1,18 +1,14 @@
 'use client';
 
-import { useEffect } from 'react';
 import Link from 'next/link';
 import UploadTest from '@/components/UploadTest';
+import ContinueTest from '@/components/ContinueTest';
 import FormatHelp from '@/components/FormatHelp';
 import ShareButton from '@/components/ShareButton';
 import Footer from '@/components/Footer';
 import { reachGoal } from '@/utils/metrika';
 
 const HomePage = () => {
-  useEffect(() => {
-    localStorage.setItem('results', JSON.stringify([]));
-  }, []);
-
   return (
     <div className="min-h-svh flex flex-col items-center p-4 sm:p-8">
       <div className="flex-1" />
@@ -33,6 +29,7 @@ const HomePage = () => {
         </p>
 
         <div className="animate-fade-up delay-3">
+          <ContinueTest />
           <UploadTest />
           <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
             <ShareButton />
