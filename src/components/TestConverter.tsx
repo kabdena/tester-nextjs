@@ -10,14 +10,18 @@ import {
   buildTesterDocx,
   type ConvertQuestion,
 } from '@/utils/convertTest';
-import { saveQuestions } from '@/utils/questionsStore';
-import { resetProgress } from '@/utils/quizProgress';
+import { getFileId, withQuestionIds } from '@/utils/ids';
+import { prepareTest } from '@/utils/studyStore';
 import { getEndOfTheWord } from '@/utils/utils';
 
 const WORD_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-type StoredQuestion = ConvertQuestion & { type: string };
+type StoredQuestion = ConvertQuestion & {
+  type: string;
+  id?: string;
+  fileId?: string;
+};
 
 type TestFile = {
   name: string;
@@ -26,21 +30,8 @@ type TestFile = {
   questionsWithoutCorrect: number;
 };
 
-const readDocxFile = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        resolve(result.value);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = (err) => reject(err);
-    reader.readAsArrayBuffer(file);
-  });
+const readDocxFile = async (arrayBuffer: ArrayBuffer): Promise<string> =>
+  (await mammoth.convertToHtml({ arrayBuffer })).value;
 
 const downloadBlob = (blob: Blob, fileName: string) => {
   const url = URL.createObjectURL(blob);
@@ -52,12 +43,6 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   a.remove();
   URL.revokeObjectURL(url);
 };
-
-const shuffleArray = <T,>(array: T[]): T[] =>
-  array
-    .map((item) => ({ item, sort: Math.random() }))
-    .sort((a, b) => a.sort - b.sort)
-    .map(({ item }) => item);
 
 const TestConverter: React.FC = () => {
   const router = useRouter();
@@ -92,7 +77,9 @@ const TestConverter: React.FC = () => {
     }
 
     try {
-      const html = await readDocxFile(file);
+      const arrayBuffer = await file.arrayBuffer();
+      const fileId = await getFileId(arrayBuffer);
+      const html = await readDocxFile(arrayBuffer);
       const { questions: parsed, warnings } = parseSourceHtml(html);
 
       if (parsed.length === 0) {
@@ -103,10 +90,11 @@ const TestConverter: React.FC = () => {
         return;
       }
 
-      const stored: StoredQuestion[] = parsed.map((q) => ({
-        ...q,
-        type: 'question',
-      }));
+      // ID те же, что и при загрузке на главной, — история попыток общая.
+      const stored = await withQuestionIds<StoredQuestion>(
+        parsed.map((q) => ({ ...q, type: 'question' })),
+        { fileId },
+      );
 
       setTestFiles((prev) => [
         ...prev,
@@ -145,12 +133,8 @@ const TestConverter: React.FC = () => {
       return;
     }
 
-    const prepared = shuffleArray(questions)
-      .map((q) => ({ ...q, variants: shuffleArray(q.variants) }))
-      .slice(0, Math.max(1, +questionsCountPerTest));
-
     try {
-      await saveQuestions(prepared);
+      await prepareTest(questions, { count: +questionsCountPerTest });
     } catch (err) {
       console.error(err);
       setError(
@@ -158,7 +142,6 @@ const TestConverter: React.FC = () => {
       );
       return;
     }
-    resetProgress();
     reachGoal('convert_start_test');
     router.push('/quiz');
   };

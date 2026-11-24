@@ -19,8 +19,14 @@ const ContinueTest = () => {
   useEffect(() => {
     loadQuestions()
       .then((questions) => {
-        const answered = Object.keys(loadProgress().selectedAnswers).length;
-        if (answered > 0 && answered < questions.length) {
+        const progress = loadProgress();
+        const answered = Object.keys(progress.selectedAnswers).length;
+        // recordedAt — тест уже завершён кнопкой «Завершить тест».
+        if (
+          !progress.recordedAt &&
+          answered > 0 &&
+          answered < questions.length
+        ) {
           setState({ answered, total: questions.length });
         }
       })

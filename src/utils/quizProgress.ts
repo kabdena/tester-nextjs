@@ -6,11 +6,19 @@ const PROGRESS_KEY = 'quizProgress';
 // Старые ключи — до появления quizProgress.
 const LEGACY_KEYS = ['results', 'selectedAnswers'];
 
+export type QuizMode = 'normal' | 'mistakes';
+
 export type QuizProgress = {
   currentQuestionIndex: number;
   // индекс вопроса → индекс выбранного варианта
   selectedAnswers: Record<number, number>;
   elapsedSeconds: number;
+  // Метаданные попытки — для истории попыток (studyStore).
+  attemptId?: string;
+  startedAt?: number;
+  mode?: QuizMode;
+  // попытка уже записана в историю — не записывать статистику повторно
+  recordedAt?: number;
 };
 
 const EMPTY_PROGRESS: QuizProgress = {
@@ -19,12 +27,18 @@ const EMPTY_PROGRESS: QuizProgress = {
   elapsedSeconds: 0,
 };
 
+const randomId = (): string =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
 export const loadProgress = (): QuizProgress => {
   try {
     const raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return { ...EMPTY_PROGRESS };
     const parsed = JSON.parse(raw) as Partial<QuizProgress>;
     return {
+      ...parsed,
       currentQuestionIndex: Number(parsed.currentQuestionIndex) || 0,
       selectedAnswers: parsed.selectedAnswers ?? {},
       elapsedSeconds: Number(parsed.elapsedSeconds) || 0,
@@ -34,9 +48,14 @@ export const loadProgress = (): QuizProgress => {
   }
 };
 
-export const saveProgress = (progress: QuizProgress) => {
+// Сливает переданные поля с сохранённым прогрессом, чтобы не терять
+// метаданные попытки (attemptId, mode и т.д.).
+export const saveProgress = (progress: Partial<QuizProgress>) => {
   try {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
+    localStorage.setItem(
+      PROGRESS_KEY,
+      JSON.stringify({ ...loadProgress(), ...progress }),
+    );
   } catch {
     // localStorage недоступен (приватный режим) — прогресс просто не сохранится
   }
@@ -49,6 +68,12 @@ export const resetProgress = () => {
   } catch {
     // см. saveProgress
   }
+};
+
+// Начинает новую попытку: сбрасывает ответы и выдаёт новый attemptId.
+export const startAttempt = (mode: QuizMode = 'normal') => {
+  resetProgress();
+  saveProgress({ attemptId: randomId(), startedAt: Date.now(), mode });
 };
 
 type AnswerableQuestion = { variants: { correct: boolean }[] };

@@ -3,6 +3,7 @@
 import Button from '@/components/Button';
 import Footer from '@/components/Footer';
 import ShareButton from '@/components/ShareButton';
+import AddToHomeHint from '@/components/AddToHomeHint';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { loadQuestions } from '@/utils/questionsStore';
@@ -11,8 +12,14 @@ import {
   formatElapsed,
   getAnswerResults,
   loadProgress,
-  resetProgress,
+  startAttempt,
 } from '@/utils/quizProgress';
+import {
+  loadMistakeQuestions,
+  prepareTest,
+  recordCurrentAttempt,
+  type StudyQuestion,
+} from '@/utils/studyStore';
 
 type Question = {
   question: string;
@@ -29,12 +36,23 @@ const Index = () => {
     Record<number, number>
   >({});
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [mistakes, setMistakes] = useState<StudyQuestion[]>([]);
 
   useEffect(() => {
     const progress = loadProgress();
     setSelectedAnswers(progress.selectedAnswers);
     setElapsedSeconds(progress.elapsedSeconds);
-    loadQuestions<Question>().then(setQuestions);
+    loadQuestions<Question>()
+      .then(async (loaded) => {
+        setQuestions(loaded);
+        // Попытка попадает в локальную историю, а статусы вопросов —
+        // в «Работу над ошибками».
+        if (await recordCurrentAttempt(loaded)) {
+          reachGoal('attempt_saved');
+        }
+        setMistakes(await loadMistakeQuestions());
+      })
+      .catch((err) => console.error(err));
   }, []);
 
   // Результаты считаем по индексу вопроса, а не по порядку ответов —
@@ -57,8 +75,8 @@ const Index = () => {
   const router = useRouter();
 
   const telegramShareUrl = useMemo(() => {
-    const text = `Мой результат в Тестере для Platonus:${Math.round(percentage)}% (${correctAnswers} из ${totalQuestions}). Загружай свой .docx и готовься к сессии 👇`;
-    return `https://t.me/share/url?url=${encodeURIComponent(SITE_URL)}&text=${encodeURIComponent(text)}`;
+    const text = `Мой результат в Тестере для Platonus: ${Math.round(percentage)}% (${correctAnswers} из ${totalQuestions}). Загружай свой .docx и готовься к сессии 👇`;
+    return `https://t.me/share/url?url=${encodeURIComponent(`${SITE_URL}/?ref=result_tg`)}&text=${encodeURIComponent(text)}`;
   }, [percentage, correctAnswers, totalQuestions]);
 
   const getGrade = () => {
@@ -75,7 +93,19 @@ const Index = () => {
   // без повторного прикрепления файла — достаточно сбросить ответы.
   const handleRestart = () => {
     reachGoal('test_restart');
-    resetProgress();
+    startAttempt(loadProgress().mode);
+    router.push('/quiz');
+  };
+
+  const handleMistakes = async () => {
+    if (mistakes.length === 0) return;
+    try {
+      await prepareTest(mistakes, { mode: 'mistakes' });
+    } catch (err) {
+      console.error(err);
+      return;
+    }
+    reachGoal('mistakes_mode_start');
     router.push('/quiz');
   };
 
@@ -185,6 +215,11 @@ const Index = () => {
             {questions.length > 0 && (
               <Button onClick={handleRestart}>Пройти заново</Button>
             )}
+            {mistakes.length > 0 && (
+              <Button variant={'errorOutlined'} onClick={handleMistakes}>
+                Работа над ошибками ({mistakes.length})
+              </Button>
+            )}
             <Button variant={'outlined'} onClick={() => router.push('/')}>
               На главную
             </Button>
@@ -211,6 +246,12 @@ const Index = () => {
           <ShareButton />
         </div>
       </div>
+
+      {totalQuestions > 0 && (
+        <div className="w-full max-w-md mt-6">
+          <AddToHomeHint />
+        </div>
+      )}
 
       {wrongQuestions.length > 0 && (
         <div className="w-full max-w-3xl mt-8 space-y-4">

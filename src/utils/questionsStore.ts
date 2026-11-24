@@ -20,7 +20,7 @@ const openDB = (): Promise<IDBDatabase> => {
   });
 };
 
-const idbSet = async <T>(key: string, value: T): Promise<void> => {
+export const idbSet = async <T>(key: string, value: T): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -36,7 +36,7 @@ const idbSet = async <T>(key: string, value: T): Promise<void> => {
   });
 };
 
-const idbGet = async <T>(key: string): Promise<T | undefined> => {
+export const idbGet = async <T>(key: string): Promise<T | undefined> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readonly');
@@ -72,4 +72,21 @@ export const saveUploadedFiles = <T>(files: T[]): Promise<void> => {
 export const loadUploadedFiles = async <T>(): Promise<T[]> => {
   const value = await idbGet<T[]>(UPLOADED_FILES_KEY);
   return value ?? [];
+};
+
+// Полная очистка данных тестера на этом устройстве (страница /privacy):
+// IndexedDB целиком и все ключи localStorage сайта.
+export const wipeAllData = async (): Promise<void> => {
+  try {
+    localStorage.clear();
+  } catch {
+    // localStorage недоступен — нечего чистить
+  }
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => resolve();
+    // другая вкладка держит БД открытой — удаление завершится, когда её закроют
+    request.onblocked = () => resolve();
+  });
 };

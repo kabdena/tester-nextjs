@@ -4,14 +4,15 @@ import { useState } from 'react';
 import { reachGoal } from '@/utils/metrika';
 
 const SHARE_TITLE = 'Тестер для Platonus';
+// Готовое сообщение для чата группы: что это и что сделать.
 const SHARE_TEXT =
-  'Прогоняй тесты перед сессией — загрузи свой .docx и проверь знания';
+  'Тренажёр для подготовки к Platonus: загружаешь наш файл с вопросами (.docx) и прорешиваешь тест, ошибки потом можно отработать отдельно. Бесплатно, без регистрации, файл никуда не отправляется.';
 
 const ShareButton = () => {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
-    const url = window.location.origin;
+    const url = `${window.location.origin}/?ref=share`;
 
     reachGoal('share');
 
@@ -25,7 +26,7 @@ const ShareButton = () => {
     }
 
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(`${SHARE_TEXT}\n${url}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -68,7 +69,7 @@ const ShareButton = () => {
           <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
         </svg>
       )}
-      {copied ? 'Ссылка скопирована' : 'Поделиться с друзьями'}
+      {copied ? 'Сообщение скопировано' : 'Отправить в чат группы'}
     </button>
   );
 };

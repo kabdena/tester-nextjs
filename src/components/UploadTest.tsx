@@ -5,35 +5,52 @@ import mammoth from 'mammoth';
 import Link from 'next/link';
 import { getEndOfTheWord } from '@/utils/utils';
 import { reachGoal } from '@/utils/metrika';
-import {
-  loadUploadedFiles,
-  saveQuestions,
-  saveUploadedFiles,
-} from '@/utils/questionsStore';
-import { resetProgress } from '@/utils/quizProgress';
+import { loadUploadedFiles, saveUploadedFiles } from '@/utils/questionsStore';
 import { parseSourceHtml } from '@/utils/convertTest';
+import { getFileId, getLegacyFileId, withQuestionIds } from '@/utils/ids';
+import {
+  getFileStudyStats,
+  loadAttempts,
+  loadQuestionStats,
+  prepareTest,
+  type Attempt,
+  type QuestionStats,
+  type StudyQuestion,
+  type UploadedFile,
+} from '@/utils/studyStore';
 import Button from '@/components/Button';
 import { useRouter } from 'next/navigation';
 
-type Question = {
-  question: string;
-  type: string;
-  variants: Variant[];
-  images: string[];
-};
-
-type Variant = {
-  text: string;
-  correct: boolean;
-};
+type Question = StudyQuestion & { images: string[] };
 
 // Файл в списке «Загруженные файлы» вместе со своими вопросами — так удаление
 // файла убирает именно его вопросы, а список переживает перезагрузку.
-type TestFile = {
-  name: string;
-  questions: Question[];
-  // распознан не в формате тестера, а автоматически «нумерованным» парсером
-  autoConverted?: boolean;
+type TestFile = UploadedFile;
+
+// Файлы, сохранённые до появления ID, получают fileId и id вопросов.
+const migrateFiles = (files: TestFile[]): Promise<TestFile[]> =>
+  Promise.all(
+    files.map(async (file) => {
+      if (file.fileId && file.questions.every((q) => q.id)) return file;
+      const questions = await withQuestionIds(file.questions);
+      const fileId =
+        file.fileId ??
+        (await getLegacyFileId(
+          file.name,
+          questions.map((q) => q.id!),
+        ));
+      return {
+        ...file,
+        fileId,
+        questions: questions.map((q) => ({ ...q, fileId })),
+      };
+    }),
+  );
+
+// Просим браузер не стирать данные сайта при нехватке места.
+// На iOS это ничего не гарантирует, но вреда нет.
+const requestPersistentStorage = () => {
+  navigator.storage?.persist?.().catch(() => undefined);
 };
 
 const DOCX_MIME =
@@ -49,10 +66,13 @@ const UploadTest: React.FC = () => {
   const [testFiles, setTestFiles] = useState<TestFile[]>([]);
   const [isRestored, setIsRestored] = useState(false);
   const [questionsCountPerTest, setQuestionsCountPerTest] = useState('100');
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [questionStats, setQuestionStats] = useState<QuestionStats>({});
 
-  // Подтягиваем файлы, загруженные в прошлый раз.
+  // Подтягиваем файлы, загруженные в прошлый раз, и локальную статистику.
   useEffect(() => {
     loadUploadedFiles<TestFile>()
+      .then(migrateFiles)
       .then((files) => {
         if (files.length > 0) {
           setTestFiles(files);
@@ -61,6 +81,13 @@ const UploadTest: React.FC = () => {
       })
       .catch((err) => console.error(err))
       .finally(() => setIsRestored(true));
+
+    Promise.all([loadAttempts(), loadQuestionStats()])
+      .then(([loadedAttempts, loadedStats]) => {
+        setAttempts(loadedAttempts);
+        setQuestionStats(loadedStats);
+      })
+      .catch((err) => console.error(err));
   }, []);
 
   useEffect(() => {
@@ -79,13 +106,21 @@ const UploadTest: React.FC = () => {
 
     if (file && file.type === DOCX_MIME) {
       try {
-        if (testFiles.some((testFile) => testFile.name === file.name)) {
+        const arrayBuffer = await file.arrayBuffer();
+        const fileId = await getFileId(arrayBuffer);
+
+        if (
+          testFiles.some(
+            (testFile) =>
+              testFile.name === file.name || testFile.fileId === fileId,
+          )
+        ) {
           setError('Этот тест вы уже загружали');
           reachGoal('upload_duplicate');
           return;
         }
 
-        const content = await readDocxFile(file);
+        const content = await readDocxFile(arrayBuffer);
         let parsedQuestions = parseQuestions(content);
         let autoConverted = false;
 
@@ -121,10 +156,21 @@ const UploadTest: React.FC = () => {
           return;
         }
 
+        const questionsWithIds = await withQuestionIds(parsedQuestions, {
+          fileId,
+        });
+
         setTestFiles((prevState) => [
           ...prevState,
-          { name: file.name, questions: parsedQuestions, autoConverted },
+          {
+            name: file.name,
+            fileId,
+            questions: questionsWithIds,
+            autoConverted,
+            addedAt: Date.now(),
+          },
         ]);
+        requestPersistentStorage();
       } catch (err) {
         console.error(err);
         setError(
@@ -165,15 +211,9 @@ const UploadTest: React.FC = () => {
     }
 
     const allQuestions = testFiles.flatMap((testFile) => testFile.questions);
-    const preparedQuestions = shuffleArray(allQuestions)
-      .map((q) => ({
-        ...q,
-        variants: shuffleArray(q.variants),
-      }))
-      .slice(0, Math.max(1, +questionsCountPerTest));
 
     try {
-      await saveQuestions(preparedQuestions);
+      await prepareTest(allQuestions, { count: +questionsCountPerTest });
     } catch (err) {
       console.error(err);
       setError(
@@ -181,27 +221,35 @@ const UploadTest: React.FC = () => {
       );
       return;
     }
-    resetProgress();
     router.push('/quiz');
   };
 
-  const readDocxFile = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+  // «Работа над ошибками»: вопросы загруженных файлов, на которые
+  // в последний раз ответили неверно.
+  const mistakeQuestions = useMemo(
+    () =>
+      testFiles
+        .flatMap((testFile) => testFile.questions)
+        .filter((q) => q.id && questionStats[q.id]?.lastCorrect === false),
+    [testFiles, questionStats],
+  );
 
-      reader.onload = async (e) => {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        try {
-          const result = await mammoth.convertToHtml({ arrayBuffer });
-          resolve(result.value);
-        } catch (err) {
-          reject(err);
-        }
-      };
+  const startMistakesTest = async () => {
+    if (mistakeQuestions.length === 0) return;
+    try {
+      await prepareTest(mistakeQuestions, { mode: 'mistakes' });
+    } catch (err) {
+      console.error(err);
+      setError('Не удалось сохранить тест.');
+      return;
+    }
+    reachGoal('mistakes_mode_start');
+    router.push('/quiz');
+  };
 
-      reader.onerror = (err) => reject(err);
-      reader.readAsArrayBuffer(file);
-    });
+  const readDocxFile = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    return result.value;
   };
 
   const parseQuestions = (html: string): Question[] => {
@@ -255,13 +303,6 @@ const UploadTest: React.FC = () => {
     if (currentQuestion) questions.push(currentQuestion);
 
     return questions;
-  };
-
-  const shuffleArray = <T,>(array: T[]): T[] => {
-    return array
-      .map((item) => ({ item, sort: Math.random() }))
-      .sort((a, b) => a.sort - b.sort)
-      .map(({ item }) => item);
   };
 
   const allTestFilesQuestionCount = useMemo(() => {
@@ -373,6 +414,18 @@ const UploadTest: React.FC = () => {
         </div>
       )}
 
+      {mistakeQuestions.length > 0 && (
+        <div className="flex justify-center mt-4 animate-fade-up">
+          <Button
+            size={'small'}
+            variant={'errorOutlined'}
+            onClick={startMistakesTest}
+          >
+            Работа над ошибками ({mistakeQuestions.length})
+          </Button>
+        </div>
+      )}
+
       {/* Uploaded files list */}
       {testFiles.length > 0 && (
         <div className="flex flex-col items-center gap-3 mt-8 animate-fade-up">
@@ -396,69 +449,107 @@ const UploadTest: React.FC = () => {
           </div>
 
           <div className="flex gap-3 flex-wrap justify-center w-full">
-            {testFiles.map((testFile, index) => (
-              <div
-                key={index}
-                className="glass-card-raised group p-4 flex gap-4 items-center w-full sm:w-64 hover:border-border-accent transition-colors duration-300"
-              >
-                {/* File icon */}
-                <div className="shrink-0 size-9 rounded-lg bg-accent-subtle flex items-center justify-center">
-                  <svg
-                    className="size-4 text-accent"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                </div>
-
-                <div className="flex-grow min-w-0 text-start">
-                  <div
-                    className="text-sm text-text-primary truncate"
-                    title={testFile.name}
-                  >
-                    {testFile.name}
-                  </div>
-                  <div className="text-text-muted text-xs truncate">
-                    {testFile.questions.length}{' '}
-                    {getEndOfTheWord(testFile.questions.length, [
-                      'вопрос',
-                      'вопроса',
-                      'вопросов',
-                    ])}
-                    {testFile.autoConverted && ' · распознан автоматически'}
-                  </div>
-                </div>
-
-                {/* На телефоне hover нет — иконка удаления видна всегда */}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTestFile(index)}
-                  title={'Удалить тест'}
-                  aria-label={`Удалить ${testFile.name}`}
-                  className="shrink-0 p-2 -m-2 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 cursor-pointer"
+            {testFiles.map((testFile, index) => {
+              const study = getFileStudyStats(
+                testFile,
+                attempts,
+                questionStats,
+              );
+              const total = testFile.questions.length || 1;
+              return (
+                <div
+                  key={index}
+                  className="glass-card-raised group p-4 flex gap-4 items-center w-full sm:w-64 hover:border-border-accent transition-colors duration-300"
                 >
-                  <svg
-                    className="size-4 text-error hover:text-error/80 transition-colors"
-                    focusable="false"
-                    aria-hidden="true"
-                    viewBox="0 0 24 24"
+                  {/* File icon */}
+                  <div className="shrink-0 size-9 rounded-lg bg-accent-subtle flex items-center justify-center">
+                    <svg
+                      className="size-4 text-accent"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                    </svg>
+                  </div>
+
+                  <div className="flex-grow min-w-0 text-start">
+                    <div
+                      className="text-sm text-text-primary truncate"
+                      title={testFile.name}
+                    >
+                      {testFile.name}
+                    </div>
+                    <div className="text-text-muted text-xs truncate">
+                      {testFile.questions.length}{' '}
+                      {getEndOfTheWord(testFile.questions.length, [
+                        'вопрос',
+                        'вопроса',
+                        'вопросов',
+                      ])}
+                      {testFile.autoConverted && ' · распознан автоматически'}
+                    </div>
+                    {study.unseen < testFile.questions.length && (
+                      <div className="mt-2">
+                        {/* Готовность по банку: знаю / ошибался / остальное */}
+                        <div
+                          className="flex h-1 w-full rounded-full overflow-hidden bg-surface-overlay"
+                          title={`Знаю: ${study.known}, ошибки: ${study.mistakes}, не видел: ${study.unseen}`}
+                        >
+                          <div
+                            className="bg-success"
+                            style={{ width: `${(study.known / total) * 100}%` }}
+                          />
+                          <div
+                            className="bg-error"
+                            style={{
+                              width: `${(study.mistakes / total) * 100}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="text-[11px] text-text-muted mt-1 leading-snug">
+                          {study.attempts > 0 && (
+                            <>
+                              Попыток: {study.attempts} · лучший{' '}
+                              {study.bestPercent}% ·{' '}
+                            </>
+                          )}
+                          знаю {study.known} · ошибки {study.mistakes} · не
+                          видел {study.unseen}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* На телефоне hover нет — иконка удаления видна всегда */}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteTestFile(index)}
+                    title={'Удалить тест'}
+                    aria-label={`Удалить ${testFile.name}`}
+                    className="shrink-0 p-2 -m-2 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 cursor-pointer"
                   >
-                    <path
-                      d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
-                      fill="currentColor"
-                    ></path>
-                  </svg>
-                </button>
-              </div>
-            ))}
+                    <svg
+                      className="size-4 text-error hover:text-error/80 transition-colors"
+                      focusable="false"
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                        fill="currentColor"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

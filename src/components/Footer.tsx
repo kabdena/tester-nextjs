@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 const Footer = () => {
   return (
     <div className="text-text-muted text-xs tracking-wide text-center flex flex-col items-center gap-1.5 pb-14 sm:pb-0">
@@ -26,6 +28,12 @@ const Footer = () => {
           Telegram
         </a>
       </div>
+      <Link
+        href="/privacy"
+        className="text-text-muted hover:text-accent underline-offset-2 hover:underline transition-colors"
+      >
+        Ваши файлы не покидают устройство · Данные и приватность
+      </Link>
     </div>
   );
 };

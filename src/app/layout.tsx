@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Script from 'next/script';
 import Image from 'next/image';
 import ThemeToggle from '@/components/ThemeToggle';
+import VisitParams from '@/components/VisitParams';
 
 const SITE_URL = 'https://tester-ayan.vercel.app';
 const SITE_NAME = 'Тестер для Platonus';
@@ -36,6 +37,14 @@ export const metadata: Metadata = {
   authors: [{ name: 'Кабден Аян', url: 'https://t.me/kabdena' }],
   creator: 'Кабден Аян',
   applicationName: SITE_NAME,
+  appleWebApp: {
+    capable: true,
+    title: 'Тестер',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    apple: '/apple-touch-icon.png',
+  },
   alternates: {
     canonical: '/',
   },
@@ -111,6 +120,7 @@ export default function RootLayout({
         `}</Script>
       <body className="relative z-[1]">
         <ThemeToggle />
+        <VisitParams />
         {children}
         <noscript>
           <div>
