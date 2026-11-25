@@ -65,7 +65,11 @@ const UploadTest: React.FC = () => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [testFiles, setTestFiles] = useState<TestFile[]>([]);
   const [isRestored, setIsRestored] = useState(false);
-  const [questionsCountPerTest, setQuestionsCountPerTest] = useState('100');
+  // null — пользователь не менял поле: показываем min(100, всего вопросов),
+  // а не «100», когда в файле их шесть.
+  const [questionsCountInput, setQuestionsCountInput] = useState<
+    string | null
+  >(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [questionStats, setQuestionStats] = useState<QuestionStats>({});
 
@@ -312,6 +316,8 @@ const UploadTest: React.FC = () => {
   }, [testFiles]);
 
   const hasFiles = testFiles.length > 0;
+  const questionsCountPerTest =
+    questionsCountInput ?? String(Math.min(100, allTestFilesQuestionCount));
 
   const handleDeleteTestFile = (index: number) => {
     setNotice(null);
@@ -348,10 +354,17 @@ const UploadTest: React.FC = () => {
         </div>
       )}
 
-      <div className="flex gap-3 flex-wrap justify-center">
+      <div
+        className={
+          hasFiles
+            ? 'flex flex-col-reverse sm:flex-row gap-3 justify-center'
+            : 'flex gap-3 flex-wrap justify-center'
+        }
+      >
         {/* Пока файла нет, главная кнопка — загрузка, а «Начать тест» неактивна:
             раньше почти каждый четвёртый визит жал «Начать» без файла. */}
         <Button
+          className={hasFiles ? 'w-full sm:w-auto' : undefined}
           variant={hasFiles ? 'outlined' : 'primary'}
           disabled={isLoading || !isRestored}
           onClick={() => {
@@ -361,10 +374,11 @@ const UploadTest: React.FC = () => {
           {isLoading
             ? 'Загружаем…'
             : hasFiles
-              ? 'Загрузить еще'
+              ? 'Загрузить ещё'
               : 'Загрузить тест'}
         </Button>
         <Button
+          className={hasFiles ? 'w-full sm:w-auto' : undefined}
           variant={hasFiles ? 'primary' : 'outlined'}
           disabled={!hasFiles || isLoading}
           title={hasFiles ? undefined : 'Сначала загрузите файл с тестом'}
@@ -393,22 +407,26 @@ const UploadTest: React.FC = () => {
       {hasFiles && (
         <div className="flex flex-col items-center gap-1.5 mt-4 animate-fade-up">
           <div className="flex gap-2 items-center justify-center">
-            <span className="text-xs text-text-muted">
+            <label
+              htmlFor="questions-count"
+              className="text-sm text-text-secondary"
+            >
               Сколько вопросов задать
-            </span>
+            </label>
             <input
-              className="bg-surface-raised border border-border-default rounded-lg w-14 py-1.5 text-xs text-center text-text-primary focus:border-accent transition-colors duration-200"
+              id="questions-count"
+              className="bg-surface-raised border border-border-default rounded-lg w-16 h-11 text-base text-center text-text-primary focus:border-accent transition-colors duration-200"
               inputMode="numeric"
               min={10}
               max={999}
               value={questionsCountPerTest}
               onChange={(e) => {
                 setError('');
-                setQuestionsCountPerTest(e.target.value);
+                setQuestionsCountInput(e.target.value);
               }}
             />
           </div>
-          <span className="text-[11px] text-text-muted/80">
+          <span className="text-xs text-text-muted">
             Выберем случайно из {allTestFilesQuestionCount} загруженных
           </span>
         </div>
@@ -417,8 +435,8 @@ const UploadTest: React.FC = () => {
       {mistakeQuestions.length > 0 && (
         <div className="flex justify-center mt-4 animate-fade-up">
           <Button
-            size={'small'}
-            variant={'errorOutlined'}
+            className="w-full sm:w-auto"
+            variant={'outlined'}
             onClick={startMistakesTest}
           >
             Работа над ошибками ({mistakeQuestions.length})
@@ -513,15 +531,37 @@ const UploadTest: React.FC = () => {
                             }}
                           />
                         </div>
-                        <div className="text-[11px] text-text-muted mt-1 leading-snug">
+                        {/* Короткая строка вместо «знаю · ошибки · не видел»:
+                            цвета полосы поясняет легенда. */}
+                        <div className="text-xs text-text-muted mt-1.5 leading-snug flex flex-wrap gap-x-3 gap-y-0.5">
                           {study.attempts > 0 && (
-                            <>
-                              Попыток: {study.attempts} · лучший{' '}
-                              {study.bestPercent}% ·{' '}
-                            </>
+                            <span>
+                              {study.attempts}{' '}
+                              {getEndOfTheWord(study.attempts, [
+                                'попытка',
+                                'попытки',
+                                'попыток',
+                              ])}{' '}
+                              · лучший {study.bestPercent}%
+                            </span>
                           )}
-                          знаю {study.known} · ошибки {study.mistakes} · не
-                          видел {study.unseen}
+                          {study.known > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="size-1.5 rounded-full bg-success" />
+                              выучено {study.known}
+                            </span>
+                          )}
+                          {study.mistakes > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="size-1.5 rounded-full bg-error" />
+                              {study.mistakes}{' '}
+                              {getEndOfTheWord(study.mistakes, [
+                                'ошибка',
+                                'ошибки',
+                                'ошибок',
+                              ])}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
@@ -533,7 +573,7 @@ const UploadTest: React.FC = () => {
                     onClick={() => handleDeleteTestFile(index)}
                     title={'Удалить тест'}
                     aria-label={`Удалить ${testFile.name}`}
-                    className="shrink-0 p-2 -m-2 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 cursor-pointer"
+                    className="shrink-0 p-3.5 -m-3.5 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 cursor-pointer"
                   >
                     <svg
                       className="size-4 text-error hover:text-error/80 transition-colors"

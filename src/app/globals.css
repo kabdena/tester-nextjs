@@ -14,8 +14,11 @@
   --color-border-accent: rgba(37, 99, 180, 0.3);
   --color-text-primary: #1e293b;
   --color-text-secondary: #475569;
-  --color-text-muted: #94a3b8;
+  /* #64748b — 4.4:1 на фоне; прежний #94a3b8 давал 2.4:1 */
+  --color-text-muted: #64748b;
   --color-accent: #2563eb;
+  /* Текст на кнопке с фоном accent */
+  --color-on-accent: #ffffff;
   --color-accent-hover: #3b82f6;
   --color-accent-subtle: rgba(37, 99, 235, 0.07);
   --color-accent-glow: rgba(37, 99, 235, 0.1);
@@ -44,8 +47,11 @@
   --color-border-accent: rgba(96, 165, 250, 0.3);
   --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  /* #8593a8 — 4.7:1 на карточке; прежний #64748b давал 3.75:1 */
+  --color-text-muted: #8593a8;
   --color-accent: #60a5fa;
+  /* Белый на #60a5fa — 2.5:1, тёмный — 7:1 */
+  --color-on-accent: #0f172a;
   --color-accent-hover: #93c5fd;
   --color-accent-subtle: rgba(96, 165, 250, 0.1);
   --color-accent-glow: rgba(96, 165, 250, 0.15);
@@ -227,8 +233,8 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 12px;
   border: 1px solid var(--color-border-default);
   background: var(--color-surface-raised);

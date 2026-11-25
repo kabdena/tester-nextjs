@@ -230,7 +230,7 @@ const Index = () => {
               <button
                 type="button"
                 onClick={handleRestart}
-                className="text-text-secondary hover:text-accent transition-colors"
+                className="min-h-11 px-2 text-text-secondary hover:text-accent transition-colors"
               >
                 Пройти заново
               </button>
@@ -238,20 +238,20 @@ const Index = () => {
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="text-text-secondary hover:text-accent transition-colors"
+              className="min-h-11 px-2 text-text-secondary hover:text-accent transition-colors"
             >
               На главную
             </button>
           </div>
 
           {totalQuestions > 0 && (
-            <div className="flex items-center justify-center gap-6 pt-3 mt-1 border-t border-border-subtle w-full">
+            <div className="flex items-center justify-center gap-6 pt-1 mt-1 border-t border-border-subtle w-full">
               <a
                 href={telegramShareUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => reachGoal('share_telegram')}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-[#229ED9] hover:opacity-80 transition-opacity"
+                className="inline-flex items-center min-h-11 gap-1.5 whitespace-nowrap text-sm text-[#229ED9] hover:opacity-80 transition-opacity"
               >
                 <svg
                   className="size-4"

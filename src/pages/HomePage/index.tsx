@@ -31,15 +31,15 @@ const HomePage = () => {
         <div className="animate-fade-up delay-3">
           <ContinueTest />
           <UploadTest />
-          <div className="flex items-center justify-center gap-3 mt-4 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 mt-2 sm:flex-wrap">
             <ShareButton />
-            <span className="size-1 rounded-full bg-text-muted/40" />
+            <span className="hidden sm:block size-1 rounded-full bg-text-muted/40" />
             <FormatHelp />
-            <span className="size-1 rounded-full bg-text-muted/40" />
+            <span className="hidden sm:block size-1 rounded-full bg-text-muted/40" />
             <Link
               href="/convert"
               onClick={() => reachGoal('convert_link_open')}
-              className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-accent transition-colors duration-200"
+              className="inline-flex items-center min-h-11 gap-1.5 text-sm text-text-muted hover:text-accent transition-colors duration-200"
             >
               <svg
                 className="size-4"

@@ -18,9 +18,9 @@ const Button = ({
     <button
       className={classNames(
         'cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-medium tracking-wide transition-all duration-200 ease-out',
-        'active:scale-[0.97]',
+        'active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
         {
-          'bg-accent text-white hover:bg-accent-hover shadow-[0_0_20px_var(--color-accent-glow)] hover:shadow-[0_0_28px_var(--color-accent-glow)]':
+          'bg-accent text-on-accent hover:bg-accent-hover shadow-[0_0_20px_var(--color-accent-glow)] hover:shadow-[0_0_28px_var(--color-accent-glow)]':
             variant === 'primary',
           'border border-border-default text-text-primary hover:border-accent hover:text-accent hover:bg-accent-subtle':
             variant === 'outlined',

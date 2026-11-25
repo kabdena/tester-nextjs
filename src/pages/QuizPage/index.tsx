@@ -194,10 +194,13 @@ const Index = () => {
                 selectedAnswersByQuestion[index] !== undefined && !isCurrent;
 
               return (
-                <div
+                <button
+                  type="button"
                   id={`question-nav-${index}`}
+                  aria-label={`Вопрос ${index + 1}${isAnswered ? ', есть ответ' : ''}`}
+                  aria-current={isCurrent ? 'step' : undefined}
                   className={
-                    'py-1.5 px-2.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-200 shrink-0' +
+                    'min-w-11 h-11 px-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 shrink-0 focus-visible:outline-2 focus-visible:outline-accent' +
                     (isCurrent
                       ? ' bg-accent text-surface shadow-[0_0_12px_rgba(245,158,11,0.2)]'
                       : '') +
@@ -212,7 +215,7 @@ const Index = () => {
                   key={index}
                 >
                   {index + 1}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -253,7 +256,9 @@ const Index = () => {
                 {currentQuestion.images.length > 1 && (
                   <>
                     <button
-                      className="absolute left-2 top-1/2 -translate-y-1/2 size-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors disabled:opacity-30"
+                      type="button"
+                      aria-label="Предыдущее изображение"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 size-11 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors disabled:opacity-30"
                       disabled={currentImageIndex === 0}
                       onClick={() => setCurrentImageIndex((prev) => prev - 1)}
                     >
@@ -270,7 +275,9 @@ const Index = () => {
                       </svg>
                     </button>
                     <button
-                      className="absolute right-2 top-1/2 -translate-y-1/2 size-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors disabled:opacity-30"
+                      type="button"
+                      aria-label="Следующее изображение"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 size-11 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors disabled:opacity-30"
                       disabled={
                         currentImageIndex === currentQuestion.images.length - 1
                       }
@@ -295,7 +302,9 @@ const Index = () => {
                 <div className="flex justify-center gap-1.5 mt-3">
                   {currentQuestion.images.map((_, index) => (
                     <button
+                      type="button"
                       key={index}
+                      aria-label={`Изображение ${index + 1}`}
                       className={
                         'size-2 rounded-full transition-all' +
                         (index === currentImageIndex
@@ -318,36 +327,65 @@ const Index = () => {
                 selectedAnswersByQuestion[currentQuestionIndex] !== undefined;
               const isCorrect = variant.correct;
 
-              let variantClasses =
-                'glass-card-raised py-4 px-5 text-sm sm:text-base cursor-pointer transition-all duration-200 hover:border-border-accent';
+              const base =
+                'w-full flex items-start gap-3 text-left py-4 px-5 text-sm sm:text-base transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+              let variantClasses = `${base} glass-card-raised cursor-pointer hover:border-border-accent`;
+              // Верно/неверно — не только цветом, но и значком с подписью
+              // для экранного диктора.
+              let mark: 'correct' | 'wrong' | null = null;
 
               if (isRevealed) {
                 if (isCorrect) {
-                  variantClasses =
-                    'py-4 px-5 text-sm sm:text-base rounded-xl border bg-success-bg border-success-border text-success';
+                  variantClasses = `${base} rounded-xl border bg-success-bg border-success-border text-success`;
+                  mark = 'correct';
                 } else if (isSelected) {
-                  variantClasses =
-                    'py-4 px-5 text-sm sm:text-base rounded-xl border bg-error-bg border-error-border text-error';
+                  variantClasses = `${base} rounded-xl border bg-error-bg border-error-border text-error`;
+                  mark = 'wrong';
                 } else {
-                  variantClasses =
-                    'glass-card-raised py-4 px-5 text-sm sm:text-base opacity-50';
+                  variantClasses = `${base} glass-card-raised opacity-50`;
                 }
               } else if (isSelected) {
-                variantClasses =
-                  'glass-card-raised py-4 px-5 text-sm sm:text-base border-accent!';
+                variantClasses = `${base} glass-card-raised border-accent!`;
               }
 
               return (
-                <li
-                  key={index}
-                  className={variantClasses}
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => handleAnswer(index, currentQuestionIndex)}
-                >
-                  <span className="text-text-muted mr-3 text-xs font-mono">
-                    {String.fromCharCode(65 + index)}
-                  </span>
-                  {variant.text}
+                <li key={index}>
+                  <button
+                    type="button"
+                    className={variantClasses}
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                    aria-disabled={isRevealed || undefined}
+                    onClick={() => handleAnswer(index, currentQuestionIndex)}
+                  >
+                    <span className="text-text-muted text-xs font-mono leading-5 sm:leading-6 shrink-0">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    <span className="flex-1">{variant.text}</span>
+                    {mark && (
+                      <svg
+                        className="size-5 shrink-0 mt-0.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        role="img"
+                        aria-label={
+                          mark === 'correct' ? 'Правильный ответ' : 'Неверный ответ'
+                        }
+                      >
+                        {mark === 'correct' ? (
+                          <polyline points="20 6 9 17 4 12" />
+                        ) : (
+                          <>
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </>
+                        )}
+                      </svg>
+                    )}
+                  </button>
                 </li>
               );
             })}
@@ -358,29 +396,36 @@ const Index = () => {
       {/* Bottom action bar */}
       {questions.length > 0 && (
         <div
-          className="py-5 sticky bottom-0 flex gap-3 backdrop-blur-xl mt-8 animate-fade-up -mx-4 md:-mx-8 px-4 md:px-8"
+          className="py-5 sticky bottom-0 flex flex-col-reverse sm:flex-row sm:justify-between gap-3 backdrop-blur-xl mt-8 animate-fade-up -mx-4 md:-mx-8 px-4 md:px-8"
           style={{ backgroundColor: 'var(--color-backdrop-bg)' }}
         >
-          <Button
-            variant={'outlined'}
-            disabled={currentQuestionIndex === 0}
-            onClick={() => {
-              setCurrentQuestionIndex(currentQuestionIndex - 1);
-            }}
-          >
-            Назад
-          </Button>
-          <Button
-            disabled={currentQuestionIndex === questions.length - 1}
-            onClick={() => {
-              setCurrentQuestionIndex(currentQuestionIndex + 1);
-            }}
-          >
-            Вперед
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              className="flex-1 sm:flex-none"
+              variant={'outlined'}
+              disabled={currentQuestionIndex === 0}
+              onClick={() => {
+                setCurrentQuestionIndex(currentQuestionIndex - 1);
+              }}
+            >
+              Назад
+            </Button>
+            <Button
+              className="flex-1 sm:flex-none"
+              variant={showResultsButton ? 'outlined' : 'primary'}
+              disabled={currentQuestionIndex === questions.length - 1}
+              onClick={() => {
+                setCurrentQuestionIndex(currentQuestionIndex + 1);
+              }}
+            >
+              Вперёд
+            </Button>
+          </div>
+          {/* Когда все вопросы отвечены, главное действие — результаты;
+              раньше третья кнопка вылезала за экран на телефоне. */}
           {showResultsButton && (
             <Button
-              variant={'outlined'}
+              className="w-full sm:w-auto"
               onClick={() => {
                 router.push('/results');
               }}

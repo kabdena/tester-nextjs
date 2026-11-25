@@ -39,7 +39,7 @@ const ShareButton = ({ compact = false }: { compact?: boolean }) => {
     <button
       type="button"
       onClick={handleShare}
-      className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-text-muted hover:text-accent transition-colors duration-200"
+      className="inline-flex items-center min-h-11 gap-1.5 whitespace-nowrap text-sm text-text-muted hover:text-accent transition-colors duration-200"
     >
       {copied ? (
         <svg

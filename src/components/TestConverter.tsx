@@ -248,7 +248,7 @@ const TestConverter: React.FC = () => {
               }}
             />
           </div>
-          <span className="text-[11px] text-text-muted/80">
+          <span className="text-xs text-text-muted">
             Выберем случайно из {totalQuestions} распознанных
           </span>
         </div>
@@ -361,7 +361,7 @@ const TestConverter: React.FC = () => {
           </button>
 
           {(totalWithoutCorrect > 0 || totalTables > 0) && (
-            <div className="text-[11px] text-text-muted/80 text-center max-w-sm leading-relaxed">
+            <div className="text-xs text-text-muted text-center max-w-sm leading-relaxed">
               {totalWithoutCorrect > 0 && (
                 <span className="block text-error/80">
                   Без отметки правильного ответа: {totalWithoutCorrect}{' '}

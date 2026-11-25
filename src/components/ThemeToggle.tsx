@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 
 const ThemeToggle = () => {
   const [isDark, setIsDark] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');
@@ -19,6 +21,9 @@ const ThemeToggle = () => {
     document.documentElement.classList.toggle('dark', next);
     localStorage.setItem('theme', next ? 'dark' : 'light');
   };
+
+  // В тесте кнопка висела поверх закреплённой панели «Назад / Вперёд».
+  if (pathname === '/quiz') return null;
 
   return (
     <button onClick={toggle} className="theme-toggle" aria-label="Переключить тему">
