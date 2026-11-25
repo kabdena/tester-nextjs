@@ -158,7 +158,8 @@ const Index = () => {
               strokeDashoffset="78.5"
               className="transition-all duration-1000 ease-out"
               style={{
-                filter: 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.3))',
+                // Свечение в цвет акцента; раньше оставался оранжевый от старой темы.
+                filter: 'drop-shadow(0 0 8px var(--color-accent-glow))',
               }}
             />
           </svg>
@@ -181,7 +182,14 @@ const Index = () => {
           </div>
           <div className="w-px bg-border-subtle" />
           <div>
-            <div className="text-2xl font-bold text-error">
+            {/* Ноль ошибок — не повод для красного */}
+            <div
+              className={`text-2xl font-bold ${
+                totalQuestions - correctAnswers > 0
+                  ? 'text-error'
+                  : 'text-text-primary'
+              }`}
+            >
               {totalQuestions - correctAnswers}
             </div>
             <div className="text-xs text-text-muted uppercase tracking-wider">
@@ -197,17 +205,6 @@ const Index = () => {
               Всего
             </div>
           </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="relative w-full h-2 bg-surface-overlay rounded-full overflow-hidden mb-8 animate-fade-up delay-4">
-          <div
-            className="absolute top-0 left-0 h-full bg-gradient-to-r from-accent to-accent-hover rounded-full"
-            style={{
-              width: `${percentage}%`,
-              animation: 'progressFill 1s ease-out',
-            }}
-          />
         </div>
 
         {/* Одна главная кнопка, остальное — второстепенное: раньше было

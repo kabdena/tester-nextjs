@@ -1,9 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
-import Footer from '@/components/Footer';
 import { loadQuestions } from '@/utils/questionsStore';
 import {
   formatElapsed,
@@ -34,6 +33,9 @@ const Index = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const router = useRouter();
+  // Подсказку «прокрутите» показываем, только когда номерам тесно.
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const [isNavOverflowing, setIsNavOverflowing] = useState(false);
 
   // Восстанавливаем вопросы и прогресс: после перезагрузки или выгрузки
   // вкладки тест продолжается с того же места.
@@ -84,6 +86,17 @@ const Index = () => {
   }, [currentQuestionIndex, isRestored]);
 
   const hasQuestions = questions.length > 0;
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const update = () =>
+      setIsNavOverflowing(nav.scrollWidth > nav.clientWidth + 1);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [hasQuestions, questions.length]);
 
   useEffect(() => {
     if (!isRestored || !hasQuestions) return;
@@ -184,27 +197,46 @@ const Index = () => {
       {/* Question navigation */}
       {hasQuestions && (
         <div className="mb-8 animate-fade-in">
-          <div className="text-text-muted text-xs mb-2 tracking-wide uppercase">
-            Прокрутите для просмотра других вопросов {'<'} {'>'}
-          </div>
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
+          {isNavOverflowing && (
+            <div className="text-text-muted text-xs mb-2 tracking-wide uppercase">
+              Прокрутите для просмотра других вопросов {'<'} {'>'}
+            </div>
+          )}
+          <div
+            ref={navRef}
+            className="flex items-center gap-1.5 overflow-x-auto pb-2"
+          >
             {questions.map((_, index) => {
               const isCurrent = currentQuestionIndex === index;
-              const isAnswered =
-                selectedAnswersByQuestion[index] !== undefined && !isCurrent;
+              const selected = selectedAnswersByQuestion[index];
+              const isAnswered = selected !== undefined && !isCurrent;
+              // Ответ виден сразу, поэтому номер показывает итог:
+              // зелёный — верно, красный — ошибка.
+              const isAnsweredCorrect =
+                isAnswered && questions[index]?.variants[selected]?.correct;
 
               return (
                 <button
                   type="button"
                   id={`question-nav-${index}`}
-                  aria-label={`Вопрос ${index + 1}${isAnswered ? ', есть ответ' : ''}`}
+                  aria-label={`Вопрос ${index + 1}${
+                    isAnswered
+                      ? isAnsweredCorrect
+                        ? ', отвечен верно'
+                        : ', отвечен неверно'
+                      : ''
+                  }`}
                   aria-current={isCurrent ? 'step' : undefined}
                   className={
                     'min-w-11 h-11 px-2 rounded-lg text-sm font-medium cursor-pointer transition-all duration-200 shrink-0 focus-visible:outline-2 focus-visible:outline-accent' +
                     (isCurrent
-                      ? ' bg-accent text-surface shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                      ? ' bg-accent text-on-accent shadow-[0_0_12px_var(--color-accent-glow)]'
                       : '') +
-                    (isAnswered ? ' bg-accent/15 text-accent/80' : '') +
+                    (isAnswered
+                      ? isAnsweredCorrect
+                        ? ' border bg-success-bg border-success-border text-success'
+                        : ' border bg-error-bg border-error-border text-error'
+                      : '') +
                     (!isCurrent && !isAnswered
                       ? ' text-text-muted hover:text-text-secondary hover:bg-surface-overlay'
                       : '')
@@ -436,9 +468,8 @@ const Index = () => {
         </div>
       )}
 
-      <div className="mt-auto pt-8">
-        <Footer />
-      </div>
+      {/* Футер с автором и ссылками в тесте только отвлекает — он есть
+          на главной и на результатах. */}
 
       {lightboxIndex !== null && currentQuestion?.images && (
         <div

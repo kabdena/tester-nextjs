@@ -186,6 +186,8 @@ const TestConverter: React.FC = () => {
     }
   };
 
+  const hasFiles = testFiles.length > 0;
+
   const totalQuestions = useMemo(
     () => testFiles.reduce((acc, f) => acc + f.questionsCount, 0),
     [testFiles],
@@ -207,19 +209,26 @@ const TestConverter: React.FC = () => {
         </div>
       )}
 
+      {/* Как на главной: пока файла нет, главная кнопка — выбор файла,
+          а «Начать тест» неактивна. */}
       <div className="flex gap-3 flex-wrap justify-center">
         <Button
-          variant={'outlined'}
+          variant={hasFiles ? 'outlined' : 'primary'}
           disabled={isLoading}
           onClick={() => inputRef.current?.click()}
         >
           {isLoading
             ? 'Обрабатываем…'
-            : testFiles.length > 0
+            : hasFiles
               ? 'Добавить ещё'
               : 'Выбрать .docx'}
         </Button>
-        <Button onClick={startTest} disabled={isLoading}>
+        <Button
+          variant={hasFiles ? 'primary' : 'outlined'}
+          onClick={startTest}
+          disabled={!hasFiles || isLoading}
+          title={hasFiles ? undefined : 'Сначала выберите файл .docx'}
+        >
           Начать тест
         </Button>
         <input
@@ -230,6 +239,13 @@ const TestConverter: React.FC = () => {
           className="hidden"
         />
       </div>
+
+      {!hasFiles && (
+        <p className="text-xs text-text-muted mt-3 text-center">
+          Сначала выберите файл .docx — затем станет доступна кнопка «Начать
+          тест»
+        </p>
+      )}
 
       {testFiles.length > 0 && (
         <div className="flex flex-col items-center gap-1.5 mt-4 animate-fade-up">
