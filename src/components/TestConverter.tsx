@@ -341,10 +341,14 @@ const TestConverter: React.FC = () => {
                   </div>
                 </div>
 
-                <div
+                {/* Кнопка, как на главной: доступна с клавиатуры и для
+                    VoiceOver, зона нажатия 44px. */}
+                <button
+                  type="button"
                   onClick={() => handleDeleteTestFile(index)}
                   title={'Удалить файл'}
-                  className="shrink-0 p-2 -m-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200 cursor-pointer"
+                  aria-label={`Удалить ${testFile.name}`}
+                  className="shrink-0 p-3.5 -m-3.5 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 focus-visible:outline-2 focus-visible:outline-accent rounded-lg transition-opacity duration-200 cursor-pointer"
                 >
                   <svg
                     className="size-4 text-error hover:text-error/80 transition-colors"
@@ -357,7 +361,7 @@ const TestConverter: React.FC = () => {
                       fill="currentColor"
                     ></path>
                   </svg>
-                </div>
+                </button>
               </div>
             ))}
           </div>
