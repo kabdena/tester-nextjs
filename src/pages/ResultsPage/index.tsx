@@ -248,10 +248,12 @@ const Index = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => reachGoal('share_telegram')}
-                className="inline-flex items-center min-h-11 gap-1.5 whitespace-nowrap text-sm text-[#229ED9] hover:opacity-80 transition-opacity"
+                className="inline-flex items-center min-h-11 gap-1.5 whitespace-nowrap text-sm text-accent hover:text-accent-hover transition-colors"
               >
+                {/* Фирменный цвет Telegram — только у значка: текстом
+                    #229ED9 на белом давал 3:1. */}
                 <svg
-                  className="size-4"
+                  className="size-4 text-[#229ED9]"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                   aria-hidden="true"

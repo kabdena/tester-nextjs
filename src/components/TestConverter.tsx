@@ -52,7 +52,10 @@ const TestConverter: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [testFiles, setTestFiles] = useState<TestFile[]>([]);
   const [questions, setQuestions] = useState<StoredQuestion[]>([]);
-  const [questionsCountPerTest, setQuestionsCountPerTest] = useState('100');
+  // null — поле не меняли: показываем min(100, всего вопросов), как на главной.
+  const [questionsCountInput, setQuestionsCountInput] = useState<
+    string | null
+  >(null);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -192,6 +195,8 @@ const TestConverter: React.FC = () => {
     () => testFiles.reduce((acc, f) => acc + f.questionsCount, 0),
     [testFiles],
   );
+  const questionsCountPerTest =
+    questionsCountInput ?? String(Math.min(100, totalQuestions));
   const totalTables = useMemo(
     () => testFiles.reduce((acc, f) => acc + f.tablesFound, 0),
     [testFiles],
@@ -250,17 +255,22 @@ const TestConverter: React.FC = () => {
       {testFiles.length > 0 && (
         <div className="flex flex-col items-center gap-1.5 mt-4 animate-fade-up">
           <div className="flex gap-2 items-center justify-center">
-            <span className="text-xs text-text-muted">
+            <label
+              htmlFor="convert-questions-count"
+              className="text-sm text-text-secondary"
+            >
               Сколько вопросов задать
-            </span>
+            </label>
             <input
-              className="bg-surface-raised border border-border-default rounded-lg w-14 py-1.5 text-xs text-center text-text-primary focus:border-accent transition-colors duration-200"
+              id="convert-questions-count"
+              inputMode="numeric"
+              className="bg-surface-raised border border-border-default rounded-lg w-16 h-11 text-base text-center text-text-primary focus:border-accent transition-colors duration-200"
               min={10}
               max={999}
               value={questionsCountPerTest}
               onChange={(e) => {
                 setError('');
-                setQuestionsCountPerTest(e.target.value);
+                setQuestionsCountInput(e.target.value);
               }}
             />
           </div>
