@@ -210,40 +210,62 @@ const Index = () => {
           />
         </div>
 
-        <div className="animate-fade-up delay-5 flex flex-col items-center gap-4">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {questions.length > 0 && (
-              <Button onClick={handleRestart}>Пройти заново</Button>
-            )}
-            {mistakes.length > 0 && (
-              <Button variant={'errorOutlined'} onClick={handleMistakes}>
-                Работа над ошибками ({mistakes.length})
-              </Button>
-            )}
-            <Button variant={'outlined'} onClick={() => router.push('/')}>
-              На главную
+        {/* Одна главная кнопка, остальное — второстепенное: раньше было
+            пять равнозначных кнопок подряд. */}
+        <div className="animate-fade-up delay-5 flex flex-col items-center gap-3">
+          {mistakes.length > 0 ? (
+            <Button className="w-full sm:w-auto" onClick={handleMistakes}>
+              Работа над ошибками ({mistakes.length})
             </Button>
-          </div>
-          {totalQuestions > 0 && (
-            <a
-              href={telegramShareUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => reachGoal('share_telegram')}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap text-white bg-[#229ED9] hover:bg-[#1c8cc2] transition-colors duration-200"
-            >
-              <svg
-                className="size-4"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M21.94 4.3a1.1 1.1 0 0 0-1.5-1.2L2.7 10.03c-.98.38-.97 1.77.02 2.13l4.43 1.6 1.7 5.28c.22.68 1.07.9 1.59.4l2.5-2.4 4.63 3.42c.62.46 1.5.12 1.66-.63L21.94 4.3zM9.86 13.94l-.37 3.33-1.23-3.83 9.3-6.1-7.7 6.6z" />
-              </svg>
-              Отправить результат в Telegram
-            </a>
+          ) : (
+            questions.length > 0 && (
+              <Button className="w-full sm:w-auto" onClick={handleRestart}>
+                Пройти заново
+              </Button>
+            )
           )}
-          <ShareButton />
+
+          <div className="flex items-center justify-center gap-5 text-sm">
+            {mistakes.length > 0 && questions.length > 0 && (
+              <button
+                type="button"
+                onClick={handleRestart}
+                className="text-text-secondary hover:text-accent transition-colors"
+              >
+                Пройти заново
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="text-text-secondary hover:text-accent transition-colors"
+            >
+              На главную
+            </button>
+          </div>
+
+          {totalQuestions > 0 && (
+            <div className="flex items-center justify-center gap-6 pt-3 mt-1 border-t border-border-subtle w-full">
+              <a
+                href={telegramShareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => reachGoal('share_telegram')}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-[#229ED9] hover:opacity-80 transition-opacity"
+              >
+                <svg
+                  className="size-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M21.94 4.3a1.1 1.1 0 0 0-1.5-1.2L2.7 10.03c-.98.38-.97 1.77.02 2.13l4.43 1.6 1.7 5.28c.22.68 1.07.9 1.59.4l2.5-2.4 4.63 3.42c.62.46 1.5.12 1.66-.63L21.94 4.3zM9.86 13.94l-.37 3.33-1.23-3.83 9.3-6.1-7.7 6.6z" />
+                </svg>
+                Telegram
+              </a>
+              <ShareButton compact />
+            </div>
+          )}
         </div>
       </div>
 

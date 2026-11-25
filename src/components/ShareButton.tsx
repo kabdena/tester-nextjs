@@ -8,7 +8,8 @@ const SHARE_TITLE = 'Тестер для Platonus';
 const SHARE_TEXT =
   'Тренажёр для подготовки к Platonus: загружаешь наш файл с вопросами (.docx) и прорешиваешь тест, ошибки потом можно отработать отдельно. Бесплатно, без регистрации, файл никуда не отправляется.';
 
-const ShareButton = () => {
+// compact — короткая подпись для тесных мест (страница результатов).
+const ShareButton = ({ compact = false }: { compact?: boolean }) => {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
@@ -38,7 +39,7 @@ const ShareButton = () => {
     <button
       type="button"
       onClick={handleShare}
-      className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-accent transition-colors duration-200"
+      className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm text-text-muted hover:text-accent transition-colors duration-200"
     >
       {copied ? (
         <svg
@@ -69,7 +70,11 @@ const ShareButton = () => {
           <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
         </svg>
       )}
-      {copied ? 'Сообщение скопировано' : 'Отправить в чат группы'}
+      {copied
+        ? 'Скопировано'
+        : compact
+          ? 'В чат группы'
+          : 'Отправить в чат группы'}
     </button>
   );
 };
