@@ -31,8 +31,8 @@ const HomePage = () => {
         <div className="animate-fade-up delay-3">
           <ContinueTest />
           <UploadTest />
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-x-3 mt-2 sm:flex-wrap">
-            <ShareButton />
+          <div className="flex flex-row flex-wrap items-center justify-center gap-x-4 sm:gap-x-3 mt-4 max-sm:[&_svg]:hidden">
+            <ShareButton compact />
             <span className="hidden sm:block size-1 rounded-full bg-text-muted/40" />
             <FormatHelp />
             <span className="hidden sm:block size-1 rounded-full bg-text-muted/40" />
@@ -56,8 +56,8 @@ const HomePage = () => {
                 <line x1="15" y1="15" x2="21" y2="21" />
                 <line x1="4" y1="4" x2="9" y2="9" />
               </svg>
-              Конвертировать из другого формата
-              <span className="ml-1 inline-flex items-center rounded-full bg-accent/15 text-accent text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 leading-none">
+              Конвертер
+              <span className="inline-flex items-center rounded-full bg-accent/15 text-accent text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 leading-none">
                 new
               </span>
             </Link>

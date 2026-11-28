@@ -377,15 +377,18 @@ const UploadTest: React.FC = () => {
               ? 'Загрузить ещё'
               : 'Загрузить тест'}
         </Button>
-        <Button
-          className={hasFiles ? 'w-full sm:w-auto' : undefined}
-          variant={hasFiles ? 'primary' : 'outlined'}
-          disabled={!hasFiles || isLoading}
-          title={hasFiles ? undefined : 'Сначала загрузите файл с тестом'}
-          onClick={startTest}
-        >
-          Начать тест
-        </Button>
+        {/* Без файла «Начать тест» не показываем вовсе — одна понятная
+            кнопка вместо неактивной и поясняющего текста под ней. */}
+        {hasFiles && (
+          <Button
+            className="w-full sm:w-auto"
+            variant="primary"
+            disabled={isLoading}
+            onClick={startTest}
+          >
+            Начать тест
+          </Button>
+        )}
         <input
           ref={inputRef}
           id="file-upload"
@@ -395,13 +398,6 @@ const UploadTest: React.FC = () => {
           className="hidden"
         />
       </div>
-
-      {isRestored && !hasFiles && (
-        <p className="text-xs text-text-muted mt-3">
-          Сначала загрузите файл .docx с вопросами — затем станет доступна
-          кнопка «Начать тест»
-        </p>
-      )}
 
       {/* Question count input — only after a test is uploaded */}
       {hasFiles && (
