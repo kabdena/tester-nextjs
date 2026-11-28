@@ -56,7 +56,13 @@ const requestPersistentStorage = () => {
 const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-const UploadTest: React.FC = () => {
+type UploadTestProps = {
+  // Вызывается после восстановления файлов из IndexedDB и при каждом
+  // изменении «есть ли файлы» — главная по нему сжимает шапку.
+  onHasFilesChange?: (hasFiles: boolean) => void;
+};
+
+const UploadTest: React.FC<UploadTestProps> = ({ onHasFilesChange }) => {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [suggestConverter, setSuggestConverter] = useState(false);
@@ -319,6 +325,10 @@ const UploadTest: React.FC = () => {
   const questionsCountPerTest =
     questionsCountInput ?? String(Math.min(100, allTestFilesQuestionCount));
 
+  useEffect(() => {
+    if (isRestored) onHasFilesChange?.(hasFiles);
+  }, [isRestored, hasFiles, onHasFilesChange]);
+
   const handleDeleteTestFile = (index: number) => {
     setNotice(null);
     setTestFiles((prevState) => [
@@ -354,102 +364,39 @@ const UploadTest: React.FC = () => {
         </div>
       )}
 
-      <div
-        className={
-          hasFiles
-            ? 'flex flex-col-reverse sm:flex-row gap-3 justify-center'
-            : 'flex gap-3 flex-wrap justify-center'
-        }
-      >
-        {/* Пока файла нет, главная кнопка — загрузка, а «Начать тест» неактивна:
-            раньше почти каждый четвёртый визит жал «Начать» без файла. */}
-        <Button
-          className={hasFiles ? 'w-full sm:w-auto' : undefined}
-          variant={hasFiles ? 'outlined' : 'primary'}
-          disabled={isLoading || !isRestored}
-          onClick={() => {
-            inputRef.current?.click();
-          }}
-        >
-          {isLoading
-            ? 'Загружаем…'
-            : hasFiles
-              ? 'Загрузить ещё'
-              : 'Загрузить тест'}
-        </Button>
-        {/* Без файла «Начать тест» не показываем вовсе — одна понятная
-            кнопка вместо неактивной и поясняющего текста под ней. */}
-        {hasFiles && (
+      <input
+        ref={inputRef}
+        id="file-upload"
+        type="file"
+        accept=".docx"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
+      {/* Пока файла нет, главная кнопка — загрузка; «Начать тест» не показываем
+          вовсе: раньше почти каждый четвёртый визит жал «Начать» без файла. */}
+      {!hasFiles && (
+        <div className="flex justify-center">
           <Button
             className="w-full sm:w-auto"
-            variant="primary"
-            disabled={isLoading}
-            onClick={startTest}
+            disabled={isLoading || !isRestored}
+            onClick={() => inputRef.current?.click()}
           >
-            Начать тест
+            {isLoading ? 'Загружаем…' : 'Загрузить тест'}
           </Button>
-        )}
-        <input
-          ref={inputRef}
-          id="file-upload"
-          type="file"
-          accept=".docx"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-      </div>
+        </div>
+      )}
 
-      {/* Question count input — only after a test is uploaded */}
+      {/* С файлами — два блока: (а) что загружено, (б) настройка и старт. */}
       {hasFiles && (
-        <div className="flex flex-col items-center gap-1.5 mt-4 animate-fade-up">
-          <div className="flex gap-2 items-center justify-center">
-            <label
-              htmlFor="questions-count"
-              className="text-sm text-text-secondary"
-            >
-              Сколько вопросов задать
-            </label>
-            <input
-              id="questions-count"
-              className="bg-surface-raised border border-border-default rounded-lg w-16 h-11 text-base text-center text-text-primary focus:border-accent transition-colors duration-200"
-              inputMode="numeric"
-              min={10}
-              max={999}
-              value={questionsCountPerTest}
-              onChange={(e) => {
-                setError('');
-                setQuestionsCountInput(e.target.value);
-              }}
-            />
-          </div>
-          <span className="text-xs text-text-muted">
-            Выберем случайно из {allTestFilesQuestionCount} загруженных
-          </span>
-        </div>
-      )}
-
-      {mistakeQuestions.length > 0 && (
-        <div className="flex justify-center mt-4 animate-fade-up">
-          <Button
-            className="w-full sm:w-auto"
-            variant={'outlined'}
-            onClick={startMistakesTest}
-          >
-            Работа над ошибками ({mistakeQuestions.length})
-          </Button>
-        </div>
-      )}
-
-      {/* Uploaded files list */}
-      {testFiles.length > 0 && (
-        <div className="flex flex-col items-center gap-3 mt-8 animate-fade-up">
-          <div className="flex flex-col items-center">
-            <div className="text-sm text-text-secondary font-medium">
-              Загруженные файлы:
-            </div>
+        <div className="flex flex-col gap-3 animate-fade-up">
+          <div className="flex items-baseline justify-between gap-3 text-start">
+            <h2 className="text-sm text-text-secondary font-medium">
+              Загруженные файлы
+            </h2>
             {testFiles.length > 1 && (
-              <div className="text-xs text-text-muted mt-1">
-                ({testFiles.length}{' '}
+              <span className="text-xs text-text-muted">
+                {testFiles.length}{' '}
                 {getEndOfTheWord(testFiles.length, ['файл', 'файла', 'файлов'])}
                 , {allTestFilesQuestionCount}{' '}
                 {getEndOfTheWord(allTestFilesQuestionCount, [
@@ -457,12 +404,11 @@ const UploadTest: React.FC = () => {
                   'вопроса',
                   'вопросов',
                 ])}
-                )
-              </div>
+              </span>
             )}
           </div>
 
-          <div className="flex gap-3 flex-wrap justify-center w-full">
+          <div className="flex flex-col gap-3 w-full">
             {testFiles.map((testFile, index) => {
               const study = getFileStudyStats(
                 testFile,
@@ -473,7 +419,7 @@ const UploadTest: React.FC = () => {
               return (
                 <div
                   key={index}
-                  className="glass-card-raised group p-4 flex gap-4 items-center w-full sm:w-64 hover:border-border-accent transition-colors duration-300"
+                  className="glass-card-raised group p-4 flex gap-4 items-center w-full hover:border-border-accent transition-colors duration-300"
                 >
                   {/* File icon */}
                   <div className="shrink-0 size-9 rounded-lg bg-accent-subtle flex items-center justify-center">
@@ -563,13 +509,14 @@ const UploadTest: React.FC = () => {
                     )}
                   </div>
 
-                  {/* На телефоне hover нет — иконка удаления видна всегда */}
+                  {/* Прячем до наведения только там, где есть hover:
+                      на телефоне и тач-планшете иконка видна всегда */}
                   <button
                     type="button"
                     onClick={() => handleDeleteTestFile(index)}
                     title={'Удалить тест'}
                     aria-label={`Удалить ${testFile.name}`}
-                    className="shrink-0 p-3.5 -m-3.5 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity duration-200 cursor-pointer"
+                    className="shrink-0 p-3.5 -m-3.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 transition-opacity duration-200 cursor-pointer"
                   >
                     <svg
                       className="size-4 text-error hover:text-error/80 transition-colors"
@@ -586,6 +533,65 @@ const UploadTest: React.FC = () => {
                 </div>
               );
             })}
+          </div>
+
+          <Button
+            className="w-full sm:w-auto sm:self-center"
+            variant="outlined"
+            disabled={isLoading}
+            onClick={() => inputRef.current?.click()}
+          >
+            {isLoading ? 'Загружаем…' : 'Загрузить ещё'}
+          </Button>
+        </div>
+      )}
+
+      {hasFiles && (
+        <div className="flex flex-col items-center gap-3 mt-8 animate-fade-up">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex gap-2 items-center justify-center">
+              <label
+                htmlFor="questions-count"
+                className="text-sm text-text-secondary"
+              >
+                Сколько вопросов задать
+              </label>
+              <input
+                id="questions-count"
+                className="bg-surface-raised border border-border-default rounded-lg w-16 h-11 text-base text-center text-text-primary focus:border-accent transition-colors duration-200"
+                inputMode="numeric"
+                min={10}
+                max={999}
+                value={questionsCountPerTest}
+                onChange={(e) => {
+                  setError('');
+                  setQuestionsCountInput(e.target.value);
+                }}
+              />
+            </div>
+            <span className="text-xs text-text-muted">
+              Выберем случайно из {allTestFilesQuestionCount} загруженных
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center w-full">
+            <Button
+              className="w-full sm:w-auto"
+              variant="primary"
+              disabled={isLoading}
+              onClick={startTest}
+            >
+              Начать тест
+            </Button>
+            {mistakeQuestions.length > 0 && (
+              <Button
+                className="w-full sm:w-auto"
+                variant="outlined"
+                onClick={startMistakesTest}
+              >
+                Работа над ошибками ({mistakeQuestions.length})
+              </Button>
+            )}
           </div>
         </div>
       )}

@@ -12,11 +12,15 @@
   --color-border-subtle: rgba(30, 58, 95, 0.06);
   --color-border-default: rgba(30, 58, 95, 0.12);
   --color-border-accent: rgba(37, 99, 180, 0.3);
+  /* Контур вторичной кнопки */
+  --color-border-control: rgba(30, 58, 95, 0.12);
   --color-text-primary: #1e293b;
   --color-text-secondary: #475569;
-  /* #64748b — 4.4:1 на фоне; прежний #94a3b8 давал 2.4:1 */
-  --color-text-muted: #64748b;
+  /* #5b6b82 — 5.1:1 на фоне и 5.4:1 на карточке; #64748b давал 4.43:1 */
+  --color-text-muted: #5b6b82;
   --color-accent: #2563eb;
+  /* Мелкий акцентный текст на подложке accent/15 (бейдж NEW): 5.1:1 */
+  --color-accent-strong: #1d4ed8;
   /* Текст на кнопке с фоном accent */
   --color-on-accent: #ffffff;
   --color-accent-hover: #3b82f6;
@@ -45,11 +49,14 @@
   --color-border-subtle: rgba(148, 163, 184, 0.08);
   --color-border-default: rgba(148, 163, 184, 0.15);
   --color-border-accent: rgba(96, 165, 250, 0.3);
+  /* /0.4 — 2.2:1 к фону; при /0.15 контур кнопки был не виден (1.28:1) */
+  --color-border-control: rgba(148, 163, 184, 0.4);
   --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
   /* #8593a8 — 4.7:1 на карточке; прежний #64748b давал 3.75:1 */
   --color-text-muted: #8593a8;
   --color-accent: #60a5fa;
+  --color-accent-strong: #60a5fa;
   /* Белый на #60a5fa — 2.5:1, тёмный — 7:1 */
   --color-on-accent: #0f172a;
   --color-accent-hover: #93c5fd;
@@ -111,6 +118,15 @@ body::after {
   pointer-events: none;
   z-index: 0;
   transition: background 0.3s ease;
+}
+
+/* Фокус с клавиатуры у текстовых ссылок и кнопок-ссылок: с отступом от текста.
+   В слое base — focus-visible:* утилиты перекрывают. */
+@layer base {
+  :where(a, button):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
 }
 
 /* ─── Scrollbar ─────────────────────────────────── */

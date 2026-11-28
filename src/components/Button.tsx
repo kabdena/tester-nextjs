@@ -22,7 +22,7 @@ const Button = ({
         {
           'bg-accent text-on-accent hover:bg-accent-hover shadow-[0_0_20px_var(--color-accent-glow)] hover:shadow-[0_0_28px_var(--color-accent-glow)]':
             variant === 'primary',
-          'border border-border-default text-text-primary hover:border-accent hover:text-accent hover:bg-accent-subtle':
+          'border border-border-control text-text-primary hover:border-accent hover:text-accent hover:bg-accent-subtle':
             variant === 'outlined',
           'border border-error-border text-error hover:bg-error-bg':
             variant === 'errorOutlined',

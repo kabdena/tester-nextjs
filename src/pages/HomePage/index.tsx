@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import classNames from 'classnames';
 import UploadTest from '@/components/UploadTest';
 import ContinueTest from '@/components/ContinueTest';
 import FormatHelp from '@/components/FormatHelp';
@@ -9,30 +11,49 @@ import Footer from '@/components/Footer';
 import { reachGoal } from '@/utils/metrika';
 
 const HomePage = () => {
+  // null — файлы из IndexedDB ещё не восстановлены: шапку прячем (только её —
+  // если хранилище зависнет, загрузка теста останется доступной), чтобы
+  // у вернувшегося пользователя она не мигала полной → компактной.
+  const [hasFiles, setHasFiles] = useState<boolean | null>(null);
+  const compact = hasFiles === true;
+
   return (
     <div className="min-h-svh flex flex-col items-center p-4 sm:p-8">
       <div className="flex-1" />
       <div className="text-center max-w-xl w-full">
-        {/* Decorative accent line */}
-        <div className="flex items-center justify-center gap-3 mb-8 animate-fade-up">
-          <div className="h-px w-12 bg-gradient-to-r from-transparent to-accent/40" />
-          <div className="size-1.5 rounded-full bg-accent/60" />
-          <div className="h-px w-12 bg-gradient-to-l from-transparent to-accent/40" />
+        <div className={classNames({ invisible: hasFiles === null })}>
+          {/* С файлами шапка компактная: на первом экране — список и «Начать тест» */}
+          {!compact && (
+            <div className="flex items-center justify-center gap-3 mb-8 animate-fade-up">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-accent/40" />
+              <div className="size-1.5 rounded-full bg-accent/60" />
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-accent/40" />
+            </div>
+          )}
+
+          <h1
+            className={classNames(
+              'font-display text-text-primary animate-fade-up delay-1 tracking-tight',
+              compact
+                ? 'text-2xl sm:text-3xl mb-6'
+                : 'text-4xl sm:text-5xl md:text-6xl mb-4',
+            )}
+          >
+            Тестер для Platonus
+          </h1>
+
+          {!compact && (
+            <p className="text-base sm:text-lg text-text-secondary mb-10 animate-fade-up delay-2 leading-relaxed">
+              Проверьте свои знания, загрузив тест и ответив на вопросы.
+            </p>
+          )}
         </div>
-
-        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl text-text-primary mb-4 animate-fade-up delay-1 tracking-tight">
-          Тестер для Platonus
-        </h1>
-
-        <p className="text-base sm:text-lg text-text-secondary mb-10 animate-fade-up delay-2 leading-relaxed">
-          Проверьте свои знания, загрузив тест и ответив на вопросы.
-        </p>
 
         <div className="animate-fade-up delay-3">
           <ContinueTest />
-          <UploadTest />
-          <div className="flex flex-row flex-wrap items-center justify-center gap-x-4 sm:gap-x-3 mt-4 max-sm:[&_svg]:hidden">
-            <ShareButton compact />
+          <UploadTest onHasFilesChange={setHasFiles} />
+          <div className="flex flex-row flex-wrap items-center justify-center gap-x-4 sm:gap-x-3 mt-4 max-sm:[&_svg:not(.keep-icon)]:hidden">
+            <ShareButton />
             <span className="hidden sm:block size-1 rounded-full bg-text-muted/40" />
             <FormatHelp />
             <span className="hidden sm:block size-1 rounded-full bg-text-muted/40" />
@@ -57,7 +78,7 @@ const HomePage = () => {
                 <line x1="4" y1="4" x2="9" y2="9" />
               </svg>
               Конвертер
-              <span className="inline-flex items-center rounded-full bg-accent/15 text-accent text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 leading-none">
+              <span className="inline-flex items-center rounded-full bg-accent/15 text-accent-strong text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 leading-none">
                 new
               </span>
             </Link>

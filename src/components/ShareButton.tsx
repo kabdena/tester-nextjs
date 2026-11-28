@@ -8,8 +8,8 @@ const SHARE_TITLE = 'Тестер для Platonus';
 const SHARE_TEXT =
   'Тренажёр для подготовки к Platonus: загружаешь наш файл с вопросами (.docx) и прорешиваешь тест, ошибки потом можно отработать отдельно. Бесплатно, без регистрации, файл никуда не отправляется.';
 
-// compact — короткая подпись для тесных мест (страница результатов).
-const ShareButton = ({ compact = false }: { compact?: boolean }) => {
+// «Поделиться», а не «В чат группы»: прежняя подпись читалась как «перейти в чат».
+const ShareButton = () => {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
@@ -43,7 +43,7 @@ const ShareButton = ({ compact = false }: { compact?: boolean }) => {
     >
       {copied ? (
         <svg
-          className="size-4 text-success"
+          className="keep-icon size-4 text-success"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -55,7 +55,7 @@ const ShareButton = ({ compact = false }: { compact?: boolean }) => {
         </svg>
       ) : (
         <svg
-          className="size-4"
+          className="keep-icon size-4"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -70,11 +70,7 @@ const ShareButton = ({ compact = false }: { compact?: boolean }) => {
           <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
         </svg>
       )}
-      {copied
-        ? 'Скопировано'
-        : compact
-          ? 'В чат группы'
-          : 'Отправить в чат группы'}
+      {copied ? 'Скопировано' : 'Поделиться'}
     </button>
   );
 };

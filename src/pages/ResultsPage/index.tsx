@@ -262,7 +262,7 @@ const Index = () => {
                 </svg>
                 Telegram
               </a>
-              <ShareButton compact />
+              <ShareButton />
             </div>
           )}
         </div>
